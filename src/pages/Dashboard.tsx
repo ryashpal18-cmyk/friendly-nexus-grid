@@ -146,12 +146,13 @@ export default function Dashboard() {
                   { label: "New Patient", icon: Users, path: "/opd" },
                   { label: "New Appointment", icon: Calendar, path: "/appointments" },
                   { label: "Create Bill", icon: Receipt, path: "/billing" },
+                  { label: "AI Report", icon: null, path: "/reports", featured: true },
                   { label: "Upload X-Ray", icon: FileText, path: "/reports" },
                   { label: "Physiotherapy", icon: Activity, path: "/physiotherapy" },
                   { label: "View Reports", icon: TrendingUp, path: "/analytics" },
                 ].map((action) => (
-                  <Button key={action.label} variant="outline" className="h-auto py-3 flex flex-col items-center gap-2 hover:bg-accent" onClick={() => navigate(action.path)}>
-                    <action.icon className="h-5 w-5 text-primary" />
+                  <Button key={action.label} variant="outline" className={`h-auto py-3 flex flex-col items-center gap-2 hover:bg-accent ${action.featured ? "bg-gradient-to-r from-primary to-secondary text-primary-foreground border-0 shadow-md hover:opacity-90" : ""}`} onClick={() => navigate(action.path)}>
+                    {action.icon ? <action.icon className={`h-5 w-5 ${action.featured ? "text-primary-foreground" : "text-primary"}`} /> : <span className="text-xl leading-none">🩻</span>}
                     <span className="text-xs">{action.label}</span>
                   </Button>
                 ))}
