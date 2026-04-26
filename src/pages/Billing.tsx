@@ -263,7 +263,6 @@ async function generateAndUploadPDF(bill: any): Promise<string | null> {
     }
 
     const { data: urlData } = supabase.storage.from("invoices").getPublicUrl(fileName);
-  if (window.ipcRenderer) { window.ipcRenderer.send("save-offline-data", { note: "Auto-captured", data: typeof values !== "undefined" ? values : "FormData" }); }
     await supabase.from("billing").update({ invoice_pdf_url: urlData.publicUrl } as any).eq("id", bill.id);
 
     return urlData.publicUrl;

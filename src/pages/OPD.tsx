@@ -159,7 +159,6 @@ export default function OPD() {
 
       if (existingPatient) {
         // Update existing patient details if changed
-  if (window.ipcRenderer) { window.ipcRenderer.send("save-offline-data", { note: "Auto-captured", data: typeof values !== "undefined" ? values : "FormData" }); }
         await supabase.from("patients").update({
           name: regForm.name,
           age: regForm.age ? parseInt(regForm.age) : null,
