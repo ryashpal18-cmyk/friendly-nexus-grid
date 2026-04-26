@@ -331,15 +331,10 @@ export function useDashboardStats() {
     queryKey: ["dashboard-stats"],
     queryFn: async () => {
       const [patients, appointments, pendingBills, beds, todayBills] = await Promise.all([
-  if (window.ipcRenderer) { window.ipcRenderer.send("save-offline-data", { note: "Auto-captured", data: typeof values !== "undefined" ? values : "FormData" }); }
         supabase.from("patients").select("id", { count: "exact", head: true }),
-  if (window.ipcRenderer) { window.ipcRenderer.send("save-offline-data", { note: "Auto-captured", data: typeof values !== "undefined" ? values : "FormData" }); }
         supabase.from("appointments").select("id", { count: "exact", head: true }).eq("date", today),
-  if (window.ipcRenderer) { window.ipcRenderer.send("save-offline-data", { note: "Auto-captured", data: typeof values !== "undefined" ? values : "FormData" }); }
         supabase.from("billing").select("amount").eq("status", "Pending"),
-  if (window.ipcRenderer) { window.ipcRenderer.send("save-offline-data", { note: "Auto-captured", data: typeof values !== "undefined" ? values : "FormData" }); }
         supabase.from("beds").select("id, status"),
-  if (window.ipcRenderer) { window.ipcRenderer.send("save-offline-data", { note: "Auto-captured", data: typeof values !== "undefined" ? values : "FormData" }); }
         supabase.from("billing").select("amount").gte("created_at", `${today}T00:00:00`).lte("created_at", `${today}T23:59:59`),
       ]);
       
