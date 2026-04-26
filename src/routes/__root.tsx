@@ -1,10 +1,26 @@
-import { Outlet, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
+import { ClientOnly, Outlet, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
+import { lazy, Suspense } from "react";
 
-import App from "../App";
 import appCss from "../styles.css?url";
 
+const App = lazy(() => import("../App"));
+
 function NotFoundComponent() {
-  return <App />;
+  return (
+    <ClientOnly fallback={<AppLoading />}>
+      <Suspense fallback={<AppLoading />}>
+        <App />
+      </Suspense>
+    </ClientOnly>
+  );
+}
+
+function AppLoading() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background">
+      <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+    </div>
+  );
 }
 
 export const Route = createRootRoute({
