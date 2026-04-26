@@ -23,7 +23,6 @@ export function usePatients() {
   return useQuery({
     queryKey: ["patients"],
     queryFn: async () => {
-  if (window.ipcRenderer) { window.ipcRenderer.send("save-offline-data", { note: "Auto-captured", data: typeof values !== "undefined" ? values : "FormData" }); }
       const { data, error } = await supabase.from("patients").select("*").order("created_at", { ascending: false });
       if (error) throw error;
       return data as Patient[];
@@ -35,7 +34,6 @@ export function useAddPatient() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (p: PatientInsert) => {
-  if (window.ipcRenderer) { window.ipcRenderer.send("save-offline-data", { note: "Auto-captured", data: typeof values !== "undefined" ? values : "FormData" }); }
       const { data, error } = await supabase.from("patients").insert(p).select().single();
       if (error) throw error;
       return data;
@@ -97,7 +95,6 @@ export function useAddAppointment() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (a: AppointmentInsert) => {
-  if (window.ipcRenderer) { window.ipcRenderer.send("save-offline-data", { note: "Auto-captured", data: typeof values !== "undefined" ? values : "FormData" }); }
       const { data, error } = await supabase.from("appointments").insert(a).select().single();
       if (error) throw error;
       return data;
@@ -110,7 +107,6 @@ export function useUpdateAppointment() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, ...updates }: { id: string } & Partial<Appointment>) => {
-  if (window.ipcRenderer) { window.ipcRenderer.send("save-offline-data", { note: "Auto-captured", data: typeof values !== "undefined" ? values : "FormData" }); }
       const { data, error } = await supabase.from("appointments").update(updates).eq("id", id).select().single();
       if (error) throw error;
       return data;
@@ -139,7 +135,6 @@ export function useAddPrescription() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (p: PrescriptionInsert) => {
-  if (window.ipcRenderer) { window.ipcRenderer.send("save-offline-data", { note: "Auto-captured", data: typeof values !== "undefined" ? values : "FormData" }); }
       const { data, error } = await supabase.from("prescriptions").insert(p).select().single();
       if (error) throw error;
       return data;
@@ -167,7 +162,6 @@ export function useAddBill() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (b: BillingInsert) => {
-  if (window.ipcRenderer) { window.ipcRenderer.send("save-offline-data", { note: "Auto-captured", data: typeof values !== "undefined" ? values : "FormData" }); }
       const { data, error } = await supabase.from("billing").insert(b).select("*, patients(name, mobile, address)").single();
       if (error) throw error;
       return data;
@@ -180,7 +174,6 @@ export function useUpdateBill() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, ...updates }: { id: string } & Partial<Billing>) => {
-  if (window.ipcRenderer) { window.ipcRenderer.send("save-offline-data", { note: "Auto-captured", data: typeof values !== "undefined" ? values : "FormData" }); }
       const { data, error } = await supabase.from("billing").update(updates).eq("id", id).select().single();
       if (error) throw error;
       return data;
@@ -210,7 +203,6 @@ export function useAddPayment() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (p: PaymentInsert) => {
-  if (window.ipcRenderer) { window.ipcRenderer.send("save-offline-data", { note: "Auto-captured", data: typeof values !== "undefined" ? values : "FormData" }); }
       const { data, error } = await supabase.from("payments").insert(p).select().single();
       if (error) throw error;
       return data;
@@ -241,7 +233,6 @@ export function useUpdateBed() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, ...updates }: { id: string } & Partial<Bed>) => {
-  if (window.ipcRenderer) { window.ipcRenderer.send("save-offline-data", { note: "Auto-captured", data: typeof values !== "undefined" ? values : "FormData" }); }
       const { data, error } = await supabase.from("beds").update(updates).eq("id", id).select().single();
       if (error) throw error;
       return data;
@@ -269,7 +260,6 @@ export function useAddPhysioSession() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (s: PhysioInsert) => {
-  if (window.ipcRenderer) { window.ipcRenderer.send("save-offline-data", { note: "Auto-captured", data: typeof values !== "undefined" ? values : "FormData" }); }
       const { data, error } = await supabase.from("physiotherapy_sessions").insert(s).select().single();
       if (error) throw error;
       return data;
@@ -297,7 +287,6 @@ export function useAddXrayReport() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (r: XrayInsert) => {
-  if (window.ipcRenderer) { window.ipcRenderer.send("save-offline-data", { note: "Auto-captured", data: typeof values !== "undefined" ? values : "FormData" }); }
       const { data, error } = await supabase.from("xray_reports").insert(r).select().single();
       if (error) throw error;
       return data;
@@ -363,7 +352,6 @@ export function useDeleteBill() {
       // Log for recovery
       if (logData) {
         const { data: { user } } = await supabase.auth.getUser();
-  if (window.ipcRenderer) { window.ipcRenderer.send("save-offline-data", { note: "Auto-captured", data: typeof values !== "undefined" ? values : "FormData" }); }
         await supabase.from("deleted_records_log" as any).insert({
           table_name: "billing",
           record_id: id,
@@ -372,10 +360,8 @@ export function useDeleteBill() {
         } as any);
       }
       // Delete related payments first
-  if (window.ipcRenderer) { window.ipcRenderer.send("save-offline-data", { note: "Auto-captured", data: typeof values !== "undefined" ? values : "FormData" }); }
       await supabase.from("payments").delete().eq("billing_id", id);
       // Delete the bill
-  if (window.ipcRenderer) { window.ipcRenderer.send("save-offline-data", { note: "Auto-captured", data: typeof values !== "undefined" ? values : "FormData" }); }
       const { error } = await supabase.from("billing").delete().eq("id", id);
       if (error) throw error;
     },
@@ -393,7 +379,6 @@ export function useDeletePatient() {
     mutationFn: async ({ id, logData }: { id: string; logData?: any }) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (logData) {
-  if (window.ipcRenderer) { window.ipcRenderer.send("save-offline-data", { note: "Auto-captured", data: typeof values !== "undefined" ? values : "FormData" }); }
         await supabase.from("deleted_records_log" as any).insert({
           table_name: "patients",
           record_id: id,
@@ -402,20 +387,13 @@ export function useDeletePatient() {
         } as any);
       }
       // Delete related records
-  if (window.ipcRenderer) { window.ipcRenderer.send("save-offline-data", { note: "Auto-captured", data: typeof values !== "undefined" ? values : "FormData" }); }
       await supabase.from("appointments").delete().eq("patient_id", id);
-  if (window.ipcRenderer) { window.ipcRenderer.send("save-offline-data", { note: "Auto-captured", data: typeof values !== "undefined" ? values : "FormData" }); }
       await supabase.from("prescriptions").delete().eq("patient_id", id);
-  if (window.ipcRenderer) { window.ipcRenderer.send("save-offline-data", { note: "Auto-captured", data: typeof values !== "undefined" ? values : "FormData" }); }
       await supabase.from("billing").delete().eq("patient_id", id);
-  if (window.ipcRenderer) { window.ipcRenderer.send("save-offline-data", { note: "Auto-captured", data: typeof values !== "undefined" ? values : "FormData" }); }
       await supabase.from("physiotherapy_sessions").delete().eq("patient_id", id);
-  if (window.ipcRenderer) { window.ipcRenderer.send("save-offline-data", { note: "Auto-captured", data: typeof values !== "undefined" ? values : "FormData" }); }
       await supabase.from("xray_reports").delete().eq("patient_id", id);
-  if (window.ipcRenderer) { window.ipcRenderer.send("save-offline-data", { note: "Auto-captured", data: typeof values !== "undefined" ? values : "FormData" }); }
       await supabase.from("medical_history").delete().eq("patient_id", id);
       // Delete patient
-  if (window.ipcRenderer) { window.ipcRenderer.send("save-offline-data", { note: "Auto-captured", data: typeof values !== "undefined" ? values : "FormData" }); }
       const { error } = await supabase.from("patients").delete().eq("id", id);
       if (error) throw error;
     },
@@ -432,7 +410,6 @@ export function useRestoreRecord() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ tableName, recordData }: { tableName: string; recordData: any }) => {
-  if (window.ipcRenderer) { window.ipcRenderer.send("save-offline-data", { note: "Auto-captured", data: typeof values !== "undefined" ? values : "FormData" }); }
       const { error } = await supabase.from(tableName as any).insert(recordData as any);
       if (error) throw error;
     },
