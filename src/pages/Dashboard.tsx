@@ -7,8 +7,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useDashboardStats, useTodayAppointments, usePrescriptions, usePhysioSessions, useTodayBills, usePendingBills } from "@/hooks/useDatabase";
+import { Input } from "@/components/ui/input";
+import { useDashboardStats, useTodayAppointments, usePrescriptions, usePhysioSessions, useTodayBills, usePendingBills, usePatients, useBills, useReportPayments } from "@/hooks/useDatabase";
 import { useNavigate } from "react-router-dom";
+import { useMemo, useRef, useState } from "react";
 
 const statusColors: Record<string, string> = {
   "Scheduled": "bg-info/10 text-info",
@@ -20,15 +22,67 @@ const statusColors: Record<string, string> = {
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const searchRef = useRef<HTMLDivElement | null>(null);
   const { data: stats } = useDashboardStats();
   const { data: todayApts } = useTodayAppointments();
   const { data: prescriptions } = usePrescriptions();
   const { data: physio } = usePhysioSessions();
   const { data: todayBills } = useTodayBills();
   const { data: pendingBills } = usePendingBills();
+  const { data: patients } = usePatients();
+  const { data: bills } = useBills();
+  const { data: reportPayments } = useReportPayments();
+  const [nameQuery, setNameQuery] = useState("");
+  const [mobileQuery, setMobileQuery] = useState("");
+  const [selectedPatient, setSelectedPatient] = useState<any>(null);
 
   const todayTotalAmount = todayBills?.reduce((sum, b) => sum + Number(b.amount), 0) || 0;
-  const pendingTotal = pendingBills?.reduce((sum, b) => sum + Number(b.amount), 0) || 0;
+  const pendingTotal = pendingBills?.reduce((sum, b) => sum + Math.max(Number(b.amount) - Number((b as any).amount_paid || 0), 0), 0) || 0;
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const monthIso = todayIso.slice(0, 7);
+  const aiIncome = useMemo(() => {
+    const payments = reportPayments || [];
+    return payments.reduce((acc, p) => {
+      const amount = Number(p.amount || 0);
+      acc.total += amount;
+      acc.count += 1;
+      if (p.payment_date === todayIso) acc.today += amount;
+      if (p.payment_date?.startsWith(monthIso)) acc.month += amount;
+      return acc;
+    }, { today: 0, month: 0, total: 0, count: 0 });
+  }, [reportPayments, todayIso, monthIso]);
+  const nameMatches = useMemo(() => nameQuery.trim() ? (patients || []).filter(p => p.name?.toLowerCase().includes(nameQuery.toLowerCase())).slice(0, 8) : [], [patients, nameQuery]);
+  const mobileMatches = useMemo(() => {
+    const digits = mobileQuery.replace(/\D/g, "");
+    return digits ? (patients || []).filter(p => (p.mobile || "").replace(/\D/g, "").includes(digits)).slice(0, 8) : [];
+  }, [patients, mobileQuery]);
+  const selectedBills = useMemo(() => selectedPatient ? (bills || []).filter(b => b.patient_id === selectedPatient.id) : [], [bills, selectedPatient]);
+  const selectedSummary = selectedBills.reduce((acc, bill) => {
+    const total = Number(bill.amount || 0);
+    const paid = Number((bill as any).amount_paid || 0);
+    acc.total += total;
+    acc.paid += paid;
+    acc.due += Math.max(total - paid, 0);
+    return acc;
+  }, { total: 0, paid: 0, due: 0 });
+
+  const buildDueReminder = (patient: any, total: number, paid: number, due: number) => `नमस्ते ${patient?.name || "Patient"} जी 🙏
+Balaji Ortho Care Center की सूचना।
+
+💰 कुल बिल: ₹${total}
+✅ जमा: ₹${paid}
+❗ बकाया: ₹${due}
+
+कृपया ₹${due} जल्द जमा करवाएं।
+
+धन्यवाद 🙏
+Balaji Ortho Care Center`;
+
+  const openReminder = (patient: any, total: number, paid: number, due: number) => {
+    const digits = (patient?.mobile || "").replace(/\D/g, "").replace(/^91/, "");
+    if (!digits) return;
+    window.open(`https://wa.me/91${digits}?text=${encodeURIComponent(buildDueReminder(patient, total, paid, due))}`, "_blank");
+  };
 
   return (
     <DashboardLayout>
