@@ -478,15 +478,14 @@ export default function Billing() {
       } as any);
 
       const updatedBill = { ...editingBill, service: serviceStr, amount: newTotal, status, amount_paid: paidNum, payment_mode: paymentMode };
-      const pdfUrl = await generateAndUploadPDF(updatedBill);
+      await generateAndUploadPDF(updatedBill);
 
       const patient = (editingBill.patients as any);
       const mobile = patient?.mobile || "";
       const patientName = patient?.name || "Patient";
 
       if (mobile) {
-        const displayServices = validServices.map(s => `• ${s.name}: ₹${s.amount}`).join("\n");
-        const msg = getWhatsAppBillMessage(patientName, mobile, newTotal, displayServices, status, pdfUrl || undefined);
+        const msg = getWhatsAppBillMessage(patientName, newTotal, paidNum, `INV-${editingBill.id.slice(0, 8).toUpperCase()}`, new Date(editingBill.created_at).toLocaleDateString("en-IN"));
         openWhatsAppWeb(mobile, msg);
       }
 
