@@ -401,16 +401,15 @@ export default function Billing() {
 
       toast({ title: "Bill Created", description: "Generating PDF & sending WhatsApp..." });
 
-      const pdfUrl = await generateAndUploadPDF(result);
+      await generateAndUploadPDF(result);
       const patient = (result.patients as any);
       const patientName = patient?.name || "Patient";
       const mobile = patient?.mobile || "";
-      const displayServices = validServices.map(s => `• ${s.name}: ₹${s.amount}`).join("\n");
 
       if (mobile) {
-        const msg = getWhatsAppBillMessage(patientName, mobile, totalAmount, displayServices, status, pdfUrl || undefined);
+        const msg = getWhatsAppBillMessage(patientName, totalAmount, paidNum, `INV-${result.id.slice(0, 8).toUpperCase()}`, new Date(result.created_at).toLocaleDateString("en-IN"));
         openWhatsAppWeb(mobile, msg);
-        toast({ title: "✅ WhatsApp Opened", description: "Invoice PDF link के साथ WhatsApp share opened" });
+        toast({ title: "✅ WhatsApp Ready", description: "📱 Patient ko WhatsApp bhejo" });
       } else {
         toast({ title: "⚠️ No Mobile", description: "Patient का mobile number नहीं है", variant: "destructive" });
       }
@@ -436,18 +435,11 @@ export default function Billing() {
       return;
     }
 
-    let pdfUrl = (bill as any).invoice_pdf_url;
-    if (!pdfUrl) {
+    if (!(bill as any).invoice_pdf_url) {
       toast({ title: "Generating PDF...", description: "Please wait" });
-      pdfUrl = await generateAndUploadPDF(bill);
+      await generateAndUploadPDF(bill);
     }
-
-    const displayServices = bill.service.split("|").map((s: string) => {
-      const parts = s.trim().split(":");
-      return `• ${parts[0]?.trim()}: ₹${parts[1]?.trim() || bill.amount}`;
-    }).join("\n");
-
-    const msg = getWhatsAppBillMessage(patientName, mobile, Number(bill.amount), displayServices, bill.status, pdfUrl || undefined);
+    const msg = getWhatsAppBillMessage(patientName, Number(bill.amount), Number((bill as any).amount_paid || 0), `INV-${bill.id.slice(0, 8).toUpperCase()}`, new Date(bill.created_at).toLocaleDateString("en-IN"));
     openWhatsAppWeb(mobile, msg);
   };
 
