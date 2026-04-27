@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
-const BODY_PARTS = ["Chest / Lungs", "Shoulder", "Spine", "Knee", "Hip", "Wrist / Hand", "Skull", "Abdomen", "Pelvis", "Elbow", "Ankle", "Ribs"];
-const VIEWS = ["AP — Antero-Posterior", "PA — Postero-Anterior", "Lateral", "Oblique", "Axial", "MRI", "Ultrasound", "Other"];
+const BODY_PARTS = ["Chest/Lungs", "Shoulder", "Spine", "Knee", "Hip", "Wrist/Hand", "Skull", "Abdomen", "Pelvis", "Elbow", "Ankle", "Ribs"];
+const VIEWS = ["AP", "PA", "Lateral", "Oblique", "Axial", "MRI", "Ultrasound", "Other"];
 const CLINIC_NAME = "Balaji Ortho Care Center";
 const UPI_ID = "ryashpal18@okicici";
 const REPORT_FEE = 50;
@@ -30,8 +30,8 @@ export default function AIXrayReport() {
   const [name, setName] = useState("");
   const [age, setAge] = useState("");
   const [gender, setGender] = useState("Male");
-  const [body, setBody] = useState("Chest / Lungs");
-  const [view, setView] = useState("AP — Antero-Posterior");
+  const [body, setBody] = useState("Chest/Lungs");
+  const [view, setView] = useState("AP");
   const [clinical, setClinical] = useState("");
   const [drag, setDrag] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
@@ -103,7 +103,7 @@ export default function AIXrayReport() {
 
   const handlePaymentConfirm = async () => {
     setVerifying(true);
-    await new Promise((r) => setTimeout(r, 1200));
+    await new Promise((r) => setTimeout(r, 2000));
     setVerifying(false);
     setShowPayment(false);
     try {
@@ -136,8 +136,7 @@ export default function AIXrayReport() {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 6, marginBottom: 12 }}>{["GPay", "PhonePe", "Paytm", "Any UPI"].map((app) => <span key={app} style={{ background: "#f1f5f9", borderRadius: 8, padding: 7, textAlign: "center", fontSize: 12, fontWeight: 700 }}>{app}</span>)}</div>
             <div style={{ background: "#fefce8", border: "1px solid #fde68a", borderRadius: 10, padding: 10, color: "#854d0e", fontSize: 13, marginBottom: 12 }}><b>✅ Payment Steps:</b><br />1. QR scan karein ya UPI ID copy karein<br />2. ₹50 payment karein<br />3. Neeche button dabayein</div>
             <label style={{ display: "block", marginBottom: 12 }}><span style={lbl}>Transaction ID (Optional)</span><input style={inp} value={txnId} onChange={(e) => setTxnId(e.target.value)} /></label>
-            <button onClick={handlePaymentConfirm} disabled={verifying} style={{ width: "100%", padding: 12, border: "none", borderRadius: 10, color: "#fff", background: "linear-gradient(90deg,#2563eb,#0ea5e9)", fontWeight: 800, cursor: "pointer" }}>{verifying ? "⏳ Verify ho rahi hai..." : "✅ Maine ₹50 Pay Kar Di - Report Generate Karo"}</button>
-            <button onClick={() => setShowPayment(false)} style={{ width: "100%", marginTop: 8, padding: 9, background: "transparent", border: "none", color: "#64748b", cursor: "pointer" }}>Cancel</button>
+            <button onClick={handlePaymentConfirm} disabled={verifying} style={{ width: "100%", padding: 12, border: "none", borderRadius: 10, color: "#fff", background: "linear-gradient(90deg,#16a34a,#22c55e)", fontWeight: 800, cursor: "pointer" }}>{verifying ? "⏳ 2 second payment verify ho rahi hai..." : "✅ Maine ₹50 Pay Kar Di - Generate Karo"}</button>
             <p style={{ color: "#64748b", fontSize: 12, textAlign: "center", marginBottom: 0 }}>⚠️ Bina payment report nahi milegi</p>
           </div>
         </div>
