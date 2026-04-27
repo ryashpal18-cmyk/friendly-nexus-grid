@@ -232,6 +232,34 @@ Balaji Ortho Care Center`;
           </Card>
         </div>
 
+        <Card ref={searchRef} id="patient-search" className="border-primary/20">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-heading">🔍 Patient Khoje</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="relative space-y-2">
+                <p className="text-xs font-medium text-muted-foreground">BOX 1 - Naam Se</p>
+                <Input value={nameQuery} onChange={(e) => setNameQuery(e.target.value)} placeholder="Naam type karein..." />
+                {nameMatches.length > 0 && <div className="absolute z-20 w-full rounded-md border bg-card shadow-lg max-h-64 overflow-auto">{nameMatches.map((p) => <button key={p.id} className="w-full text-left px-3 py-2 hover:bg-muted text-sm" onClick={() => { setSelectedPatient(p); setNameQuery(p.name || ""); }}><b>{p.name}</b><br /><span className="text-xs text-muted-foreground">{p.mobile || "No mobile"} · {p.address || "No village"}</span></button>)}</div>}
+              </div>
+              <div className="relative space-y-2">
+                <p className="text-xs font-medium text-muted-foreground">BOX 2 - Mobile Se</p>
+                <Input value={mobileQuery} onChange={(e) => setMobileQuery(e.target.value)} placeholder="Mobile number type karein..." />
+                {mobileMatches.length > 0 && <div className="absolute z-20 w-full rounded-md border bg-card shadow-lg max-h-64 overflow-auto">{mobileMatches.map((p) => <button key={p.id} className="w-full text-left px-3 py-2 hover:bg-muted text-sm" onClick={() => { setSelectedPatient(p); setMobileQuery(p.mobile || ""); }}><b>{p.name}</b><br /><span className="text-xs text-muted-foreground">{p.mobile || "No mobile"} · {p.address || "No village"}</span></button>)}</div>}
+              </div>
+            </div>
+            {selectedPatient && <div className="rounded-lg border p-4 bg-muted/20 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                <div><h3 className="font-heading font-bold text-lg">{selectedPatient.name}</h3><p className="text-sm text-muted-foreground">{selectedPatient.age || "—"}y · {selectedPatient.gender || "—"} · {selectedPatient.mobile || "—"}</p><p className="text-sm">Village: <b>{selectedPatient.address || "—"}</b></p></div>
+                <Button onClick={() => navigate("/billing")} className="gap-2">➕ Naya Bill</Button>
+              </div>
+              <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-xs text-muted-foreground"><th className="text-left py-2">Date</th><th className="text-left py-2">No</th><th className="text-right py-2">Total</th><th className="text-right py-2">Paid</th><th className="text-right py-2">Due</th></tr></thead><tbody>{selectedBills.length === 0 ? <tr><td colSpan={5} className="py-4 text-center text-muted-foreground">No bills yet</td></tr> : selectedBills.map((bill) => { const total = Number(bill.amount || 0); const paid = Number((bill as any).amount_paid || 0); const due = Math.max(total - paid, 0); return <tr key={bill.id} className="border-b"><td className="py-2">{new Date(bill.created_at).toLocaleDateString("en-IN")}</td><td className="py-2">INV-{bill.id.slice(0, 8).toUpperCase()}</td><td className="py-2 text-right">₹{total.toLocaleString()}</td><td className="py-2 text-right text-success">₹{paid.toLocaleString()}</td><td className="py-2 text-right text-destructive font-bold">₹{due.toLocaleString()}</td></tr>; })}</tbody></table></div>
+              <div className="grid grid-cols-3 gap-3"><div className="rounded-lg bg-card p-3"><p className="text-xs text-muted-foreground">Total Billed</p><b>₹{selectedSummary.total.toLocaleString()}</b></div><div className="rounded-lg bg-card p-3"><p className="text-xs text-muted-foreground">Paid</p><b className="text-success">₹{selectedSummary.paid.toLocaleString()}</b></div><div className="rounded-lg bg-card p-3"><p className="text-xs text-muted-foreground">Due</p><b className="text-destructive">₹{selectedSummary.due.toLocaleString()}</b></div></div>
+            </div>}
+          </CardContent>
+        </Card>
+
         {/* Pending Due Section */}
         {pendingBills && pendingBills.length > 0 && (
           <Card className="border-warning/30">
