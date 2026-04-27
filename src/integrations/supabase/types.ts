@@ -340,6 +340,42 @@ export type Database = {
           },
         ]
       }
+      report_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          patient_name: string
+          payment_date: string
+          payment_time: string | null
+          status: string
+          transaction_id: string | null
+          upi_id: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          id?: string
+          patient_name?: string
+          payment_date?: string
+          payment_time?: string | null
+          status?: string
+          transaction_id?: string | null
+          upi_id?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          patient_name?: string
+          payment_date?: string
+          payment_time?: string | null
+          status?: string
+          transaction_id?: string | null
+          upi_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
@@ -360,25 +396,52 @@ export type Database = {
       }
       xray_reports: {
         Row: {
+          body_part: string | null
+          clinic_name: string | null
+          clinical_history: string | null
+          created_at: string
           file_url: string | null
           id: string
-          patient_id: string
+          patient_age: string | null
+          patient_gender: string | null
+          patient_id: string | null
+          patient_name: string | null
+          report_data: string | null
           report_type: string | null
           uploaded_at: string
+          view_projection: string | null
         }
         Insert: {
+          body_part?: string | null
+          clinic_name?: string | null
+          clinical_history?: string | null
+          created_at?: string
           file_url?: string | null
           id?: string
-          patient_id: string
+          patient_age?: string | null
+          patient_gender?: string | null
+          patient_id?: string | null
+          patient_name?: string | null
+          report_data?: string | null
           report_type?: string | null
           uploaded_at?: string
+          view_projection?: string | null
         }
         Update: {
+          body_part?: string | null
+          clinic_name?: string | null
+          clinical_history?: string | null
+          created_at?: string
           file_url?: string | null
           id?: string
-          patient_id?: string
+          patient_age?: string | null
+          patient_gender?: string | null
+          patient_id?: string | null
+          patient_name?: string | null
+          report_data?: string | null
           report_type?: string | null
           uploaded_at?: string
+          view_projection?: string | null
         }
         Relationships: [
           {
