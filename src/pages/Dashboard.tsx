@@ -110,6 +110,22 @@ Balaji Ortho Care Center`;
           <StatCard title="Today's Revenue" value={`₹${(stats?.todayRevenue ?? 0).toLocaleString()}`} icon={IndianRupee} variant="success" />
         </div>
 
+        <Card className="border-primary/20">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-heading flex items-center gap-2">
+              💰 AI Report Income
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+              <div className="rounded-lg bg-success/10 p-3"><p className="text-muted-foreground text-xs">Aaj</p><p className="font-bold text-success">₹{aiIncome.today.toLocaleString()}</p></div>
+              <div className="rounded-lg bg-primary/10 p-3"><p className="text-muted-foreground text-xs">Is mahine</p><p className="font-bold text-primary">₹{aiIncome.month.toLocaleString()}</p></div>
+              <div className="rounded-lg bg-secondary/10 p-3"><p className="text-muted-foreground text-xs">Total reports</p><p className="font-bold text-secondary">{aiIncome.count}</p></div>
+              <div className="rounded-lg bg-warning/10 p-3"><p className="text-muted-foreground text-xs">Total income</p><p className="font-bold text-warning">₹{aiIncome.total.toLocaleString()}</p></div>
+            </div>
+          </CardContent>
+        </Card>
+
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Today's Appointments */}
           <Card>
@@ -201,12 +217,13 @@ Balaji Ortho Care Center`;
                   { label: "New Appointment", icon: Calendar, path: "/appointments" },
                   { label: "Create Bill", icon: Receipt, path: "/billing" },
                   { label: "AI Report", icon: null, path: "/reports", featured: true },
+                  { label: "Patient Khoje", icon: null, path: "#patient-search", search: true },
                   { label: "Upload X-Ray", icon: FileText, path: "/reports" },
                   { label: "Physiotherapy", icon: Activity, path: "/physiotherapy" },
                   { label: "View Reports", icon: TrendingUp, path: "/analytics" },
                 ].map((action) => (
-                  <Button key={action.label} variant="outline" className={`h-auto py-3 flex flex-col items-center gap-2 hover:bg-accent ${action.featured ? "bg-gradient-to-r from-primary to-secondary text-primary-foreground border-0 shadow-md hover:opacity-90" : ""}`} onClick={() => navigate(action.path)}>
-                    {action.icon ? <action.icon className={`h-5 w-5 ${action.featured ? "text-primary-foreground" : "text-primary"}`} /> : <span className="text-xl leading-none">🩻</span>}
+                  <Button key={action.label} variant="outline" className={`h-auto py-3 flex flex-col items-center gap-2 hover:bg-accent ${action.featured ? "bg-gradient-to-r from-primary to-secondary text-primary-foreground border-0 shadow-md hover:opacity-90" : ""}`} onClick={() => action.search ? searchRef.current?.scrollIntoView({ behavior: "smooth" }) : navigate(action.path)}>
+                    {action.icon ? <action.icon className={`h-5 w-5 ${action.featured ? "text-primary-foreground" : "text-primary"}`} /> : <span className="text-xl leading-none">{action.search ? "🔍" : "🩻"}</span>}
                     <span className="text-xs">{action.label}</span>
                   </Button>
                 ))}
