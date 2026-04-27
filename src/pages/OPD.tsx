@@ -436,9 +436,24 @@ export default function OPD() {
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-2 relative">
                       <Label>Address</Label>
-                      <Input placeholder="Village / Address" value={regForm.address} onChange={e => setRegForm(p => ({ ...p, address: e.target.value }))} />
+                      <Input
+                        placeholder="Village / Address"
+                        value={regForm.address}
+                        onFocus={() => setShowVillageOptions(true)}
+                        onBlur={() => setTimeout(() => setShowVillageOptions(false), 150)}
+                        onChange={e => { setRegForm(p => ({ ...p, address: e.target.value })); setShowVillageOptions(true); }}
+                      />
+                      {showVillageOptions && filteredVillages.length > 0 && (
+                        <div className="absolute z-20 w-full rounded-md border bg-card shadow-lg max-h-52 overflow-auto">
+                          {filteredVillages.map((village) => (
+                            <button key={village} type="button" className="w-full text-left px-3 py-2 text-sm hover:bg-muted" onMouseDown={() => setRegForm(p => ({ ...p, address: village }))}>
+                              {village}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div>
