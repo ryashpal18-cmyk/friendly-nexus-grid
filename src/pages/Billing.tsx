@@ -724,7 +724,8 @@ export default function Billing() {
                               </Button>
                               {bill.status !== "Paid" && patient?.mobile && (
                                 <Button variant="ghost" size="icon" className="h-7 w-7 text-warning" title="Payment Reminder" onClick={() => {
-                                  const msg = getWhatsAppReminderMessage(patient?.name || "", patient?.mobile || "", Number(bill.amount) - paid);
+                                  const due = Math.max(Number(bill.amount) - paid, 0);
+                                  const msg = getWhatsAppReminderMessage(patient?.name || "", Number(bill.amount), paid, due);
                                   openWhatsAppWeb(patient?.mobile || "", msg);
                                 }}>
                                   <Send className="h-3 w-3" />
