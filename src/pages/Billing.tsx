@@ -38,7 +38,7 @@ function getWhatsAppBillMessage(patient: string, amount: number, paid: number, b
 Balaji Ortho Care Center में आपका 
 स्वागत है।
 
-📋 बिल विवरण:
+📋 आपका बिल तैयार है:
 🔢 बिल नंबर: ${billNo}
 📅 दिनांक: ${date}
 💰 कुल राशि: ₹${amount}
@@ -46,16 +46,13 @@ Balaji Ortho Care Center में आपका
 ❗ बकाया: ₹${due}
 
 ━━━━━━━━━━━━━━
-🩻 X-Ray समझ नहीं आई?
+🩻 X-Ray रिपोर्ट समझ नहीं आई?
 
-AI से घर बैठे रिपोर्ट देखें!
-सिर्फ ₹50 में - तुरंत रिपोर्ट
+घर बैठे AI से देखें - सिर्फ ₹50 में!
+तुरंत आसान भाषा में रिपोर्ट
 
 👇 Click करें:
 ${appUrl}
-
-⚡ आसान भाषा में पूरी रिपोर्ट
-━━━━━━━━━━━━━━
 
 धन्यवाद 🙏
 Balaji Ortho Care Center`;
@@ -65,9 +62,10 @@ function getWhatsAppReminderMessage(patient: string, total: number, paid: number
   return `नमस्ते ${patient} जी 🙏
 Balaji Ortho Care Center की सूचना।
 
+आपका बिल विवरण:
 💰 कुल बिल: ₹${total}
-✅ जमा: ₹${paid}
-❗ बकाया: ₹${due}
+✅ जमा राशि: ₹${paid}
+❗ बकाया राशि: ₹${due}
 
 कृपया ₹${due} जल्द जमा करवाएं।
 

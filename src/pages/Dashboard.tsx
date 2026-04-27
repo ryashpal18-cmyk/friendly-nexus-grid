@@ -69,9 +69,10 @@ export default function Dashboard() {
   const buildDueReminder = (patient: any, total: number, paid: number, due: number) => `नमस्ते ${patient?.name || "Patient"} जी 🙏
 Balaji Ortho Care Center की सूचना।
 
+आपका बिल विवरण:
 💰 कुल बिल: ₹${total}
-✅ जमा: ₹${paid}
-❗ बकाया: ₹${due}
+✅ जमा राशि: ₹${paid}
+❗ बकाया राशि: ₹${due}
 
 कृपया ₹${due} जल्द जमा करवाएं।
 
@@ -240,12 +241,12 @@ Balaji Ortho Care Center`;
             <div className="grid md:grid-cols-2 gap-4">
               <div className="relative space-y-2">
                 <p className="text-xs font-medium text-muted-foreground">BOX 1 - Naam Se</p>
-                <Input value={nameQuery} onChange={(e) => setNameQuery(e.target.value)} placeholder="Naam type karein..." />
+                <Input value={nameQuery} onChange={(e) => setNameQuery(e.target.value)} placeholder="Patient ka naam likhe..." />
                 {nameMatches.length > 0 && <div className="absolute z-20 w-full rounded-md border bg-card shadow-lg max-h-64 overflow-auto">{nameMatches.map((p) => <button key={p.id} className="w-full text-left px-3 py-2 hover:bg-muted text-sm" onClick={() => { setSelectedPatient(p); setNameQuery(p.name || ""); }}><b>{p.name}</b><br /><span className="text-xs text-muted-foreground">{p.mobile || "No mobile"} · {p.address || "No village"}</span></button>)}</div>}
               </div>
               <div className="relative space-y-2">
                 <p className="text-xs font-medium text-muted-foreground">BOX 2 - Mobile Se</p>
-                <Input value={mobileQuery} onChange={(e) => setMobileQuery(e.target.value)} placeholder="Mobile number type karein..." />
+                <Input value={mobileQuery} onChange={(e) => setMobileQuery(e.target.value)} placeholder="Mobile number likhe..." />
                 {mobileMatches.length > 0 && <div className="absolute z-20 w-full rounded-md border bg-card shadow-lg max-h-64 overflow-auto">{mobileMatches.map((p) => <button key={p.id} className="w-full text-left px-3 py-2 hover:bg-muted text-sm" onClick={() => { setSelectedPatient(p); setMobileQuery(p.mobile || ""); }}><b>{p.name}</b><br /><span className="text-xs text-muted-foreground">{p.mobile || "No mobile"} · {p.address || "No village"}</span></button>)}</div>}
               </div>
             </div>
@@ -302,11 +303,9 @@ Balaji Ortho Care Center`;
                           </td>
                           <td className="py-2 text-right font-bold text-destructive">
                             ₹{due.toLocaleString()}
-                            {mobile && (
-                              <Button variant="ghost" size="icon" className="h-7 w-7 text-success ml-1" onClick={() => openReminder(patient, total, paid, due)} title="WhatsApp reminder">
-                                <MessageCircle className="h-3 w-3" />
-                              </Button>
-                            )}
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-success ml-1 disabled:text-muted-foreground" onClick={() => openReminder(patient, total, paid, due)} title="WhatsApp reminder" disabled={!mobile}>
+                              <MessageCircle className="h-3 w-3" />
+                            </Button>
                           </td>
                         </tr>
                       );
