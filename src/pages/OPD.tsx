@@ -85,6 +85,7 @@ export default function OPD() {
   const [advice, setAdvice] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [regForm, setRegForm] = useState({ name: "", mobile: "", age: "", gender: "", address: "" });
+  const [showVillageOptions, setShowVillageOptions] = useState(false);
   const [existingPatient, setExistingPatient] = useState<any>(null);
   const [mobileSearchStatus, setMobileSearchStatus] = useState<"idle" | "searching" | "found" | "new">("idle");
   const [rxForm, setRxForm] = useState({ patient_id: "", diagnosis: "", medicines: "", followup_date: "" });
@@ -97,6 +98,10 @@ export default function OPD() {
   const { data: searchResults } = useSearchPatients(searchQuery);
   const { data: allPatients } = usePatients();
   const addPrescription = useAddPrescription();
+  const villageOptions = Array.from(new Set((allPatients || []).map((p) => p.address?.trim()).filter(Boolean) as string[]));
+  const filteredVillages = regForm.address
+    ? villageOptions.filter((v) => v.toLowerCase().includes(regForm.address.toLowerCase())).slice(0, 8)
+    : villageOptions.slice(0, 8);
 
   // Auto-search patient by mobile number
   const handleMobileChange = async (mobile: string) => {
