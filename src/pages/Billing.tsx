@@ -30,12 +30,49 @@ const SERVICE_OPTIONS = [
 
 interface ServiceItem { name: string; amount: string; }
 
-function getWhatsAppBillMessage(patient: string, mobile: string, amount: number, services: string, status: string, pdfUrl?: string) {
-  return `🙏 Namaste ${patient},\n\nBalaji Ortho Care Center\nDr. S. S. Rathore (DMRT | BPT)\n\n📋 Bill Details:\n${services}\n\n💰 Total: ₹${amount.toLocaleString()}\n📌 Status: ${status}${pdfUrl ? `\n\n📥 Download Invoice PDF:\n${pdfUrl}` : ""}\n\n🌐 View reports & book appointment online:\nhttps://balaji-health-hub.lovable.app/\n\n📞 Contact: +91 8005707783\nDhanyawad! 🙏`;
+function getWhatsAppBillMessage(patient: string, amount: number, paid: number, billNo: string, date: string) {
+  const due = Math.max(amount - paid, 0);
+  const appUrl = `${window.location.origin}/reports`;
+  return `नमस्ते ${patient} जी 🙏
+
+Balaji Ortho Care Center में आपका 
+स्वागत है।
+
+📋 बिल विवरण:
+🔢 बिल नंबर: ${billNo}
+📅 दिनांक: ${date}
+💰 कुल राशि: ₹${amount}
+✅ जमा: ₹${paid}
+❗ बकाया: ₹${due}
+
+━━━━━━━━━━━━━━
+🩻 X-Ray समझ नहीं आई?
+
+AI से घर बैठे रिपोर्ट देखें!
+सिर्फ ₹50 में - तुरंत रिपोर्ट
+
+👇 Click करें:
+${appUrl}
+
+⚡ आसान भाषा में पूरी रिपोर्ट
+━━━━━━━━━━━━━━
+
+धन्यवाद 🙏
+Balaji Ortho Care Center`;
 }
 
-function getWhatsAppReminderMessage(patient: string, mobile: string, amount: number) {
-  return `Namaste ${patient}, Balaji Ortho Care Center se nivedan hai ki aapka Rs. ${amount} pending hai. Kripya clinic par jama karein. Dhanyawad!`;
+function getWhatsAppReminderMessage(patient: string, total: number, paid: number, due: number) {
+  return `नमस्ते ${patient} जी 🙏
+Balaji Ortho Care Center की सूचना।
+
+💰 कुल बिल: ₹${total}
+✅ जमा: ₹${paid}
+❗ बकाया: ₹${due}
+
+कृपया ₹${due} जल्द जमा करवाएं।
+
+धन्यवाद 🙏
+Balaji Ortho Care Center`;
 }
 
 function buildInvoiceHTML(bill: any, logoUrl: string = "/images/logo.png") {
