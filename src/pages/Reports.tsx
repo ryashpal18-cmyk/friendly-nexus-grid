@@ -28,6 +28,8 @@ export default function Reports() {
   const [form, setForm] = useState({ patient_id: "", report_type: "X-Ray" });
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [selectedSavedReport, setSelectedSavedReport] = useState<any>(null);
+  const savedAiReports = reports?.filter((r: any) => r.report_data) || [];
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,6 +65,35 @@ export default function Reports() {
     <DashboardLayout>
       <div className="space-y-6">
         <AIXrayReport />
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="font-heading text-base">📂 Saved Reports</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {!savedAiReports.length ? (
+              <p className="text-muted-foreground text-sm text-center py-6">No AI reports saved yet</p>
+            ) : (
+              <div className="space-y-3">
+                {savedAiReports.map((r: any) => (
+                  <div key={r.id} className="grid grid-cols-[1fr_auto] sm:grid-cols-[1.5fr_1fr_1fr_auto] gap-3 items-center p-3 rounded-lg border hover:bg-muted/30">
+                    <div><p className="text-sm font-medium">{r.patient_name || (r.patients as any)?.name || "Unknown"}</p><p className="text-xs text-muted-foreground sm:hidden">{r.body_part || "—"}</p></div>
+                    <div className="hidden sm:block text-xs text-muted-foreground">{new Date(r.created_at || r.uploaded_at).toLocaleDateString("en-IN")}</div>
+                    <div className="hidden sm:block text-xs">{r.body_part || "—"} · {r.view_projection || "—"}</div>
+                    <Button variant="outline" size="sm" onClick={() => setSelectedSavedReport(r)}>View</Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Dialog open={!!selectedSavedReport} onOpenChange={(v) => !v && setSelectedSavedReport(null)}>
+          <DialogContent className="max-w-2xl max-h-[85vh] overflow-auto">
+            <DialogHeader><DialogTitle className="font-heading">Saved AI Report</DialogTitle></DialogHeader>
+            {selectedSavedReport && (() => { const data = JSON.parse(selectedSavedReport.report_data || "{}"); return <div className="space-y-4 text-sm"><div className="grid grid-cols-2 gap-3 rounded-lg bg-muted/40 p-3"><div><span className="text-muted-foreground">Name</span><b className="block">{selectedSavedReport.patient_name || "Unknown"}</b></div><div><span className="text-muted-foreground">Body Part</span><b className="block">{selectedSavedReport.body_part || data.bodyPartDetected || "—"}</b></div><div><span className="text-muted-foreground">View</span><b className="block">{selectedSavedReport.view_projection || "—"}</b></div><div><span className="text-muted-foreground">Date</span><b className="block">{new Date(selectedSavedReport.created_at || selectedSavedReport.uploaded_at).toLocaleDateString("en-IN")}</b></div></div><section><h3 className="font-bold text-primary">Findings</h3><p className="whitespace-pre-line">{data.findings?.overall}</p>{[["Bones", data.findings?.bones], ["Soft Tissues", data.findings?.softTissues], ["Specific", data.findings?.specificFindings], ["Extra", data.findings?.extraFindings]].filter(([, v]) => v).map(([k, v]) => <p key={k}><b>{k}:</b> {v}</p>)}</section><section className="rounded-lg bg-primary/10 border-l-4 border-primary p-3"><h3 className="font-bold text-primary">Impression</h3><p className="whitespace-pre-line font-medium">{data.impression}</p></section>{data.recommendations && <section><h3 className="font-bold text-primary">Recommendations</h3><p>{data.recommendations}</p></section>}</div>; })()}
+          </DialogContent>
+        </Dialog>
 
         <div className="flex items-center justify-between">
           <div>
