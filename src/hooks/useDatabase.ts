@@ -17,6 +17,7 @@ type PhysioSession = Database["public"]["Tables"]["physiotherapy_sessions"]["Row
 type PhysioInsert = Database["public"]["Tables"]["physiotherapy_sessions"]["Insert"];
 type XrayReport = Database["public"]["Tables"]["xray_reports"]["Row"];
 type XrayInsert = Database["public"]["Tables"]["xray_reports"]["Insert"];
+type ReportPayment = Database["public"]["Tables"]["report_payments"]["Row"];
 
 // ─── Patients ───
 export function usePatients() {
@@ -292,6 +293,20 @@ export function useAddXrayReport() {
       return data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["xray_reports"] }),
+  });
+}
+
+export function useReportPayments() {
+  return useQuery({
+    queryKey: ["report_payments"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("report_payments")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data as ReportPayment[];
+    },
   });
 }
 

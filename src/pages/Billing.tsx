@@ -30,12 +30,49 @@ const SERVICE_OPTIONS = [
 
 interface ServiceItem { name: string; amount: string; }
 
-function getWhatsAppBillMessage(patient: string, mobile: string, amount: number, services: string, status: string, pdfUrl?: string) {
-  return `🙏 Namaste ${patient},\n\nBalaji Ortho Care Center\nDr. S. S. Rathore (DMRT | BPT)\n\n📋 Bill Details:\n${services}\n\n💰 Total: ₹${amount.toLocaleString()}\n📌 Status: ${status}${pdfUrl ? `\n\n📥 Download Invoice PDF:\n${pdfUrl}` : ""}\n\n🌐 View reports & book appointment online:\nhttps://balaji-health-hub.lovable.app/\n\n📞 Contact: +91 8005707783\nDhanyawad! 🙏`;
+function getWhatsAppBillMessage(patient: string, amount: number, paid: number, billNo: string, date: string) {
+  const due = Math.max(amount - paid, 0);
+  const appUrl = `${window.location.origin}/reports`;
+  return `नमस्ते ${patient} जी 🙏
+
+Balaji Ortho Care Center में आपका 
+स्वागत है।
+
+📋 बिल विवरण:
+🔢 बिल नंबर: ${billNo}
+📅 दिनांक: ${date}
+💰 कुल राशि: ₹${amount}
+✅ जमा: ₹${paid}
+❗ बकाया: ₹${due}
+
+━━━━━━━━━━━━━━
+🩻 X-Ray समझ नहीं आई?
+
+AI से घर बैठे रिपोर्ट देखें!
+सिर्फ ₹50 में - तुरंत रिपोर्ट
+
+👇 Click करें:
+${appUrl}
+
+⚡ आसान भाषा में पूरी रिपोर्ट
+━━━━━━━━━━━━━━
+
+धन्यवाद 🙏
+Balaji Ortho Care Center`;
 }
 
-function getWhatsAppReminderMessage(patient: string, mobile: string, amount: number) {
-  return `Namaste ${patient}, Balaji Ortho Care Center se nivedan hai ki aapka Rs. ${amount} pending hai. Kripya clinic par jama karein. Dhanyawad!`;
+function getWhatsAppReminderMessage(patient: string, total: number, paid: number, due: number) {
+  return `नमस्ते ${patient} जी 🙏
+Balaji Ortho Care Center की सूचना।
+
+💰 कुल बिल: ₹${total}
+✅ जमा: ₹${paid}
+❗ बकाया: ₹${due}
+
+कृपया ₹${due} जल्द जमा करवाएं।
+
+धन्यवाद 🙏
+Balaji Ortho Care Center`;
 }
 
 function buildInvoiceHTML(bill: any, logoUrl: string = "/images/logo.png") {
@@ -364,16 +401,15 @@ export default function Billing() {
 
       toast({ title: "Bill Created", description: "Generating PDF & sending WhatsApp..." });
 
-      const pdfUrl = await generateAndUploadPDF(result);
+      await generateAndUploadPDF(result);
       const patient = (result.patients as any);
       const patientName = patient?.name || "Patient";
       const mobile = patient?.mobile || "";
-      const displayServices = validServices.map(s => `• ${s.name}: ₹${s.amount}`).join("\n");
 
       if (mobile) {
-        const msg = getWhatsAppBillMessage(patientName, mobile, totalAmount, displayServices, status, pdfUrl || undefined);
+        const msg = getWhatsAppBillMessage(patientName, totalAmount, paidNum, `INV-${result.id.slice(0, 8).toUpperCase()}`, new Date(result.created_at).toLocaleDateString("en-IN"));
         openWhatsAppWeb(mobile, msg);
-        toast({ title: "✅ WhatsApp Opened", description: "Invoice PDF link के साथ WhatsApp share opened" });
+        toast({ title: "✅ WhatsApp Ready", description: "📱 Patient ko WhatsApp bhejo" });
       } else {
         toast({ title: "⚠️ No Mobile", description: "Patient का mobile number नहीं है", variant: "destructive" });
       }
@@ -399,18 +435,11 @@ export default function Billing() {
       return;
     }
 
-    let pdfUrl = (bill as any).invoice_pdf_url;
-    if (!pdfUrl) {
+    if (!(bill as any).invoice_pdf_url) {
       toast({ title: "Generating PDF...", description: "Please wait" });
-      pdfUrl = await generateAndUploadPDF(bill);
+      await generateAndUploadPDF(bill);
     }
-
-    const displayServices = bill.service.split("|").map((s: string) => {
-      const parts = s.trim().split(":");
-      return `• ${parts[0]?.trim()}: ₹${parts[1]?.trim() || bill.amount}`;
-    }).join("\n");
-
-    const msg = getWhatsAppBillMessage(patientName, mobile, Number(bill.amount), displayServices, bill.status, pdfUrl || undefined);
+    const msg = getWhatsAppBillMessage(patientName, Number(bill.amount), Number((bill as any).amount_paid || 0), `INV-${bill.id.slice(0, 8).toUpperCase()}`, new Date(bill.created_at).toLocaleDateString("en-IN"));
     openWhatsAppWeb(mobile, msg);
   };
 
@@ -449,15 +478,14 @@ export default function Billing() {
       } as any);
 
       const updatedBill = { ...editingBill, service: serviceStr, amount: newTotal, status, amount_paid: paidNum, payment_mode: paymentMode };
-      const pdfUrl = await generateAndUploadPDF(updatedBill);
+      await generateAndUploadPDF(updatedBill);
 
       const patient = (editingBill.patients as any);
       const mobile = patient?.mobile || "";
       const patientName = patient?.name || "Patient";
 
       if (mobile) {
-        const displayServices = validServices.map(s => `• ${s.name}: ₹${s.amount}`).join("\n");
-        const msg = getWhatsAppBillMessage(patientName, mobile, newTotal, displayServices, status, pdfUrl || undefined);
+        const msg = getWhatsAppBillMessage(patientName, newTotal, paidNum, `INV-${editingBill.id.slice(0, 8).toUpperCase()}`, new Date(editingBill.created_at).toLocaleDateString("en-IN"));
         openWhatsAppWeb(mobile, msg);
       }
 
@@ -696,7 +724,8 @@ export default function Billing() {
                               </Button>
                               {bill.status !== "Paid" && patient?.mobile && (
                                 <Button variant="ghost" size="icon" className="h-7 w-7 text-warning" title="Payment Reminder" onClick={() => {
-                                  const msg = getWhatsAppReminderMessage(patient?.name || "", patient?.mobile || "", Number(bill.amount) - paid);
+                                  const due = Math.max(Number(bill.amount) - paid, 0);
+                                  const msg = getWhatsAppReminderMessage(patient?.name || "", Number(bill.amount), paid, due);
                                   openWhatsAppWeb(patient?.mobile || "", msg);
                                 }}>
                                   <Send className="h-3 w-3" />

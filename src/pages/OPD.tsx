@@ -85,6 +85,7 @@ export default function OPD() {
   const [advice, setAdvice] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [regForm, setRegForm] = useState({ name: "", mobile: "", age: "", gender: "", address: "" });
+  const [showVillageOptions, setShowVillageOptions] = useState(false);
   const [existingPatient, setExistingPatient] = useState<any>(null);
   const [mobileSearchStatus, setMobileSearchStatus] = useState<"idle" | "searching" | "found" | "new">("idle");
   const [rxForm, setRxForm] = useState({ patient_id: "", diagnosis: "", medicines: "", followup_date: "" });
@@ -97,6 +98,10 @@ export default function OPD() {
   const { data: searchResults } = useSearchPatients(searchQuery);
   const { data: allPatients } = usePatients();
   const addPrescription = useAddPrescription();
+  const villageOptions = Array.from(new Set((allPatients || []).map((p) => p.address?.trim()).filter(Boolean) as string[]));
+  const filteredVillages = regForm.address
+    ? villageOptions.filter((v) => v.toLowerCase().includes(regForm.address.toLowerCase())).slice(0, 8)
+    : villageOptions.slice(0, 8);
 
   // Auto-search patient by mobile number
   const handleMobileChange = async (mobile: string) => {
@@ -431,9 +436,24 @@ export default function OPD() {
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-2 relative">
                       <Label>Address</Label>
-                      <Input placeholder="Village / Address" value={regForm.address} onChange={e => setRegForm(p => ({ ...p, address: e.target.value }))} />
+                      <Input
+                        placeholder="Village / Address"
+                        value={regForm.address}
+                        onFocus={() => setShowVillageOptions(true)}
+                        onBlur={() => setTimeout(() => setShowVillageOptions(false), 150)}
+                        onChange={e => { setRegForm(p => ({ ...p, address: e.target.value })); setShowVillageOptions(true); }}
+                      />
+                      {showVillageOptions && filteredVillages.length > 0 && (
+                        <div className="absolute z-20 w-full rounded-md border bg-card shadow-lg max-h-52 overflow-auto">
+                          {filteredVillages.map((village) => (
+                            <button key={village} type="button" className="w-full text-left px-3 py-2 text-sm hover:bg-muted" onMouseDown={() => setRegForm(p => ({ ...p, address: village }))}>
+                              {village}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div>
