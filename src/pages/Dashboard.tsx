@@ -277,35 +277,35 @@ Balaji Ortho Care Center`;
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b text-muted-foreground text-xs">
-                      <th className="text-left py-2 font-medium">Patient</th>
-                      <th className="text-left py-2 font-medium hidden sm:table-cell">Mobile</th>
-                      <th className="text-right py-2 font-medium">Due Amount</th>
-                      <th className="text-center py-2 font-medium">Status</th>
-                      <th className="text-right py-2 font-medium">Remind</th>
+                      <th className="text-left py-2 font-medium">Name</th>
+                      <th className="text-left py-2 font-medium hidden sm:table-cell">Date</th>
+                      <th className="text-right py-2 font-medium">Total</th>
+                      <th className="text-center py-2 font-medium">Paid</th>
+                      <th className="text-right py-2 font-medium text-destructive">DUE</th>
                     </tr>
                   </thead>
                   <tbody>
                     {pendingBills.slice(0, 10).map(bill => {
                       const patient = bill.patients as any;
                       const mobile = patient?.mobile || "";
-                      const cleanMobile = mobile.replace(/\D/g, "");
-                      const num = cleanMobile.startsWith("91") ? cleanMobile : `91${cleanMobile}`;
-                      const reminderUrl = mobile ? `https://wa.me/${num}?text=${encodeURIComponent(`Namaste ${patient?.name}, Balaji Ortho Care Center se aapka Rs. ${Number(bill.amount).toLocaleString()} pending hai. Kripya jama karein. Dhanyawad!`)}` : "";
+                      const total = Number(bill.amount || 0);
+                      const paid = Number((bill as any).amount_paid || 0);
+                      const due = Math.max(total - paid, 0);
+                      if (due <= 0) return null;
                       return (
                         <tr key={bill.id} className="border-b last:border-0 hover:bg-muted/30">
                           <td className="py-2 font-medium">{patient?.name}</td>
-                          <td className="py-2 hidden sm:table-cell text-muted-foreground text-xs">{mobile}</td>
-                          <td className="py-2 text-right font-bold text-warning">₹{Number(bill.amount).toLocaleString()}</td>
+                          <td className="py-2 hidden sm:table-cell text-muted-foreground text-xs">{new Date(bill.created_at).toLocaleDateString("en-IN")}</td>
+                          <td className="py-2 text-right font-medium">₹{total.toLocaleString()}</td>
                           <td className="py-2 text-center">
-                            <Badge variant="secondary" className="text-[10px] border-0 bg-warning/10 text-warning">{bill.status}</Badge>
+                            <span className="text-success font-medium">₹{paid.toLocaleString()}</span>
                           </td>
-                          <td className="py-2 text-right">
+                          <td className="py-2 text-right font-bold text-destructive">
+                            ₹{due.toLocaleString()}
                             {mobile && (
-                              <a href={reminderUrl} target="_blank" rel="noopener noreferrer">
-                                <Button variant="ghost" size="icon" className="h-7 w-7 text-success">
-                                  <MessageCircle className="h-3 w-3" />
-                                </Button>
-                              </a>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-success ml-1" onClick={() => openReminder(patient, total, paid, due)} title="WhatsApp reminder">
+                                <MessageCircle className="h-3 w-3" />
+                              </Button>
                             )}
                           </td>
                         </tr>
