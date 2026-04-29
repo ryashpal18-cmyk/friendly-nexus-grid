@@ -678,6 +678,47 @@ export default function Billing() {
           </div>
         </div>
 
+        <Card className="border-primary/20">
+          <CardHeader className="pb-3">
+            <CardTitle className="font-heading text-base flex items-center gap-2">
+              <CalendarDays className="h-4 w-4 text-primary" />
+              Cash Tally / Date Wise Billing
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid md:grid-cols-4 gap-3 items-end">
+              <div className="space-y-1">
+                <Label className="text-xs">Filter</Label>
+                <Select value={rangeMode} onValueChange={applyRangeMode}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="today">Aaj ki date</SelectItem>
+                    <SelectItem value="month">Is month</SelectItem>
+                    <SelectItem value="custom">Custom date</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">From Date</Label>
+                <Input type="date" value={fromDate} onChange={(e) => { setRangeMode("custom"); setFromDate(e.target.value); }} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">To Date</Label>
+                <Input type="date" value={toDate} onChange={(e) => { setRangeMode("custom"); setToDate(e.target.value); }} />
+              </div>
+              <div className="rounded-lg bg-muted/40 p-3 text-sm">
+                <p className="text-xs text-muted-foreground">Bills count</p>
+                <p className="font-bold text-primary">{filteredBills.length}</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="rounded-lg bg-primary/10 p-3"><p className="text-xs text-muted-foreground">Total Amount</p><b className="text-primary">₹{cashTally.total.toLocaleString()}</b></div>
+              <div className="rounded-lg bg-success/10 p-3"><p className="text-xs text-muted-foreground">Aaya / Paid</p><b className="text-success">₹{cashTally.received.toLocaleString()}</b></div>
+              <div className="rounded-lg bg-warning/10 p-3"><p className="text-xs text-muted-foreground">Baki / Due</p><b className="text-warning">₹{cashTally.pending.toLocaleString()}</b></div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Edit Bill Dialog */}
         <Dialog open={editOpen} onOpenChange={(v) => { setEditOpen(v); if (!v) { setEditingBill(null); setServices([{ name: "", amount: "" }]); setAmountPaid(""); setPaymentMode(""); } }}>
           <DialogContent className="max-w-lg">
