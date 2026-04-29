@@ -334,7 +334,38 @@ export default function Billing() {
   const [amountPaid, setAmountPaid] = useState("");
   const [paymentMode, setPaymentMode] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [rangeMode, setRangeMode] = useState("today");
+  const [fromDate, setFromDate] = useState(toLocalDateInput(new Date()));
+  const [toDate, setToDate] = useState(toLocalDateInput(new Date()));
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const applyRangeMode = (mode: string) => {
+    const today = new Date();
+    setRangeMode(mode);
+    if (mode === "today") {
+      const iso = toLocalDateInput(today);
+      setFromDate(iso);
+      setToDate(iso);
+    }
+    if (mode === "month") {
+      setFromDate(getMonthStart(today));
+      setToDate(getMonthEnd(today));
+    }
+  };
+
+  const filteredBills = (bills || []).filter((bill) => {
+    const date = billDate(bill.created_at);
+    return date >= fromDate && date <= toDate;
+  });
+
+  const cashTally = filteredBills.reduce((acc, bill) => {
+    const amount = Number(bill.amount || 0);
+    const paid = Number((bill as any).amount_paid || 0);
+    acc.total += amount;
+    acc.received += paid;
+    acc.pending += Math.max(amount - paid, 0);
+    return acc;
+  }, { total: 0, received: 0, pending: 0 });
 
   const filteredPatients = patients?.filter(p => {
     if (!patientSearch) return true;
@@ -510,11 +541,11 @@ export default function Billing() {
   };
 
   const exportToExcel = () => {
-    if (!bills || bills.length === 0) {
+    if (filteredBills.length === 0) {
       toast({ title: "No data", description: "कोई bill data नहीं है export करने के लिए", variant: "destructive" });
       return;
     }
-    const data = bills.map((bill) => {
+    const data = filteredBills.map((bill) => {
       const patient = bill.patients as any;
       const displayService = bill.service.includes("|")
         ? bill.service.split("|").map((s: string) => s.split(":")[0].trim()).join(", ")
