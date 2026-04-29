@@ -1,5 +1,5 @@
 import {
-  LayoutDashboard, Users, BedDouble, Calendar, Receipt,
+  LayoutDashboard, BedDouble, Calendar, Receipt,
   Activity, FileText, BarChart3, Settings, Stethoscope, LogOut, MessageCircle
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
@@ -17,6 +17,7 @@ const menuItems = [
   { title: "IPD / Beds", url: "/ipd", icon: BedDouble },
   { title: "Appointments", url: "/appointments", icon: Calendar },
   { title: "Billing", url: "/billing", icon: Receipt },
+  { title: "Cash Tally", url: "/cash-tally", icon: Receipt },
   { title: "Physiotherapy", url: "/physiotherapy", icon: Activity },
   { title: "Reports / X-Ray", url: "/reports", icon: FileText },
   { title: "Analytics", url: "/analytics", icon: BarChart3 },
