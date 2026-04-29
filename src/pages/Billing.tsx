@@ -740,7 +740,7 @@ export default function Billing() {
           <CardHeader>
             <CardTitle className="font-heading text-base flex items-center gap-2">
               <Receipt className="h-4 w-4 text-primary" />
-              All Bills
+              Date Wise Bills ({fromDate} to {toDate})
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -761,7 +761,10 @@ export default function Billing() {
                     </tr>
                   </thead>
                   <tbody>
-                    {bills?.map(bill => {
+                    {filteredBills.length === 0 && (
+                      <tr><td colSpan={7} className="py-6 text-center text-muted-foreground">Selected date range me koi bill nahi hai</td></tr>
+                    )}
+                    {filteredBills.map(bill => {
                       const patient = bill.patients as any;
                       const displayService = bill.service.includes("|")
                         ? bill.service.split("|").map((s: string) => s.split(":")[0].trim()).join(", ")
