@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Receipt, Plus, MessageCircle, Printer, Trash2, Pencil, Download, Send, Eye } from "lucide-react";
+import { Receipt, Plus, MessageCircle, Printer, Trash2, Pencil, Download, Send, Eye, CalendarDays } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useBills, useAddBill, usePatients, useUpdateBill, useDeleteBill } from "@/hooks/useDatabase";
 import { useState, useCallback, useRef } from "react";
@@ -27,6 +27,15 @@ const SERVICE_OPTIONS = [
   "OPD Consultation", "X-Ray", "Physiotherapy", "Procedure", "IPD Stay",
   "Plaster", "MOT Charge", "Medicine", "Dressing", "Injection", "Blood Test", "Other",
 ];
+
+const toLocalDateInput = (date: Date) => {
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 10);
+};
+
+const getMonthStart = (date: Date) => toLocalDateInput(new Date(date.getFullYear(), date.getMonth(), 1));
+const getMonthEnd = (date: Date) => toLocalDateInput(new Date(date.getFullYear(), date.getMonth() + 1, 0));
+const billDate = (createdAt: string) => toLocalDateInput(new Date(createdAt));
 
 interface ServiceItem { name: string; amount: string; }
 
