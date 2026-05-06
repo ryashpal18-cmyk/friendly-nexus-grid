@@ -167,6 +167,48 @@ export type Database = {
         }
         Relationships: []
       }
+      invoice_medicine_mapping: {
+        Row: {
+          created_at: string
+          entry_id: string
+          id: string
+          medicine_id: string | null
+          medicine_name: string
+          rate: number
+        }
+        Insert: {
+          created_at?: string
+          entry_id: string
+          id?: string
+          medicine_id?: string | null
+          medicine_name: string
+          rate?: number
+        }
+        Update: {
+          created_at?: string
+          entry_id?: string
+          id?: string
+          medicine_id?: string | null
+          medicine_name?: string
+          rate?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_medicine_mapping_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "medicine_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_medicine_mapping_medicine_id_fkey"
+            columns: ["medicine_id"]
+            isOneToOne: false
+            referencedRelation: "medicines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       medical_history: {
         Row: {
           created_at: string
@@ -198,6 +240,57 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      medicine_entries: {
+        Row: {
+          commission: number
+          created_at: string
+          date: string
+          id: string
+          invoice_no: string
+          patient_name: string
+          total_amount: number
+        }
+        Insert: {
+          commission?: number
+          created_at?: string
+          date?: string
+          id?: string
+          invoice_no: string
+          patient_name: string
+          total_amount?: number
+        }
+        Update: {
+          commission?: number
+          created_at?: string
+          date?: string
+          id?: string
+          invoice_no?: string
+          patient_name?: string
+          total_amount?: number
+        }
+        Relationships: []
+      }
+      medicines: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          rate: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          rate?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          rate?: number
+        }
+        Relationships: []
       }
       patients: {
         Row: {
