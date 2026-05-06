@@ -557,6 +557,12 @@ export default function Billing() {
       setAmountPaid("");
       setPaymentMode("");
       setOpen(false);
+
+      setMedPopup({
+        open: true,
+        patientName: patientName,
+        invoiceNo: `INV-${result.id.slice(0, 8).toUpperCase()}`,
+      });
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
