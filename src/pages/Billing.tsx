@@ -55,6 +55,7 @@ import * as XLSX from "xlsx";
 import html2pdf from "html2pdf.js";
 import { openWhatsAppWeb } from "@/pages/WhatsApp";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { MedicineEntryPopup } from "@/components/MedicineEntryPopup";
 
 const statusStyle: Record<string, string> = {
   Paid: "bg-success/10 text-success",
@@ -403,6 +404,9 @@ export default function Billing() {
   const [open, setOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editingBill, setEditingBill] = useState<any>(null);
+  const [medPopup, setMedPopup] = useState<{ open: boolean; patientName: string; invoiceNo: string }>({
+    open: false, patientName: "", invoiceNo: "",
+  });
   const [selectedPatient, setSelectedPatient] = useState("");
   const [patientSearch, setPatientSearch] = useState("");
   const [services, setServices] = useState<ServiceItem[]>([{ name: "", amount: "" }]);
@@ -553,6 +557,12 @@ export default function Billing() {
       setAmountPaid("");
       setPaymentMode("");
       setOpen(false);
+
+      setMedPopup({
+        open: true,
+        patientName: patientName,
+        invoiceNo: `INV-${result.id.slice(0, 8).toUpperCase()}`,
+      });
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
@@ -1163,6 +1173,12 @@ export default function Billing() {
           </CardContent>
         </Card>
       </div>
+      <MedicineEntryPopup
+        open={medPopup.open}
+        onClose={() => setMedPopup((p) => ({ ...p, open: false }))}
+        patientName={medPopup.patientName}
+        invoiceNo={medPopup.invoiceNo}
+      />
     </DashboardLayout>
   );
 }
