@@ -855,10 +855,10 @@ export default function Billing() {
                     disabled={addBill.isPending || isSending}
                   >
                     {isSending
-                      ? "PDF & WhatsApp भेज रहे हैं..."
+                      ? "Saving..."
                       : addBill.isPending
                         ? "Creating..."
-                        : "💾 Save Bill & Send WhatsApp"}
+                        : "💾 Save Bill"}
                   </Button>
                 </form>
               </DialogContent>
