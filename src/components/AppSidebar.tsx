@@ -36,6 +36,7 @@ const menuItems = [
   { title: "Appointments", url: "/appointments", icon: Calendar },
   { title: "Billing", url: "/billing", icon: Receipt },
   { title: "Cash Tally", url: "/cash-tally", icon: Receipt },
+  { title: "Medicine Commission", url: "/medicine-commission", icon: Pill },
   { title: "Physiotherapy", url: "/physiotherapy", icon: Activity },
   { title: "Reports / X-Ray", url: "/reports", icon: FileText },
   { title: "Analytics", url: "/analytics", icon: BarChart3 },
