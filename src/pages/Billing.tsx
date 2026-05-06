@@ -404,6 +404,9 @@ export default function Billing() {
   const [open, setOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editingBill, setEditingBill] = useState<any>(null);
+  const [medPopup, setMedPopup] = useState<{ open: boolean; patientName: string; invoiceNo: string }>({
+    open: false, patientName: "", invoiceNo: "",
+  });
   const [selectedPatient, setSelectedPatient] = useState("");
   const [patientSearch, setPatientSearch] = useState("");
   const [services, setServices] = useState<ServiceItem[]>([{ name: "", amount: "" }]);
