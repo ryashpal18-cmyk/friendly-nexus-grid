@@ -55,6 +55,7 @@ import * as XLSX from "xlsx";
 import html2pdf from "html2pdf.js";
 import { openWhatsAppWeb } from "@/pages/WhatsApp";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { MedicineEntryPopup } from "@/components/MedicineEntryPopup";
 
 const statusStyle: Record<string, string> = {
   Paid: "bg-success/10 text-success",
