@@ -1173,6 +1173,12 @@ export default function Billing() {
           </CardContent>
         </Card>
       </div>
+      <MedicineEntryPopup
+        open={medPopup.open}
+        onClose={() => setMedPopup((p) => ({ ...p, open: false }))}
+        patientName={medPopup.patientName}
+        invoiceNo={medPopup.invoiceNo}
+      />
     </DashboardLayout>
   );
 }
