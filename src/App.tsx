@@ -79,6 +79,14 @@ const App = () => (
             }
           />
           <Route
+            path="/medicine-commission"
+            element={
+              <ProtectedRoute>
+                <MedicineCommission />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/physiotherapy"
             element={
               <ProtectedRoute>
