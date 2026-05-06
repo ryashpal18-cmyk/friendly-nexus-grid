@@ -527,30 +527,10 @@ export default function Billing() {
         payment_mode: paymentMode || null,
       } as any);
 
-      toast({ title: "Bill Created", description: "Generating PDF & sending WhatsApp..." });
+      toast({ title: "✅ Bill Saved", description: "Bill successfully save ho gaya" });
 
-      await generateAndUploadPDF(result);
       const patient = result.patients as any;
       const patientName = patient?.name || "Patient";
-      const mobile = patient?.mobile || "";
-
-      if (mobile) {
-        const msg = getWhatsAppBillMessage(
-          patientName,
-          totalAmount,
-          paidNum,
-          `INV-${result.id.slice(0, 8).toUpperCase()}`,
-          new Date(result.created_at).toLocaleDateString("en-IN"),
-        );
-        openWhatsAppWeb(mobile, msg);
-        toast({ title: "✅ WhatsApp Ready", description: "📱 Patient ko WhatsApp bhejo" });
-      } else {
-        toast({
-          title: "⚠️ No Mobile",
-          description: "Patient का mobile number नहीं है",
-          variant: "destructive",
-        });
-      }
 
       setSelectedPatient("");
       setServices([{ name: "", amount: "" }]);
@@ -875,10 +855,10 @@ export default function Billing() {
                     disabled={addBill.isPending || isSending}
                   >
                     {isSending
-                      ? "PDF & WhatsApp भेज रहे हैं..."
+                      ? "Saving..."
                       : addBill.isPending
                         ? "Creating..."
-                        : "💾 Save Bill & Send WhatsApp"}
+                        : "💾 Save Bill"}
                   </Button>
                 </form>
               </DialogContent>
