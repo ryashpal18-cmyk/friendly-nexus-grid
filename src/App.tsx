@@ -10,6 +10,7 @@ import IPD from "./pages/IPD";
 import Appointments from "./pages/Appointments";
 import Billing from "./pages/Billing";
 import CashTally from "./pages/CashTally";
+import MedicineCommission from "./pages/MedicineCommission";
 import Physiotherapy from "./pages/Physiotherapy";
 import Reports from "./pages/Reports";
 import Analytics from "./pages/Analytics";
