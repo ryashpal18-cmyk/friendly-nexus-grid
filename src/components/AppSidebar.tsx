@@ -11,6 +11,8 @@ import {
   LogOut,
   MessageCircle,
   Pill,
+  Bone,
+  ClipboardList,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -36,8 +38,11 @@ const menuItems = [
   { title: "Appointments", url: "/appointments", icon: Calendar },
   { title: "Billing", url: "/billing", icon: Receipt },
   { title: "Cash Tally", url: "/cash-tally", icon: Receipt },
+  { title: "Medicine Master", url: "/medicine-master", icon: Pill },
+  { title: "Patient Medicine", url: "/patient-medicine", icon: ClipboardList },
   { title: "Medicine Commission", url: "/medicine-commission", icon: Pill },
   { title: "Physiotherapy", url: "/physiotherapy", icon: Activity },
+  { title: "Ortho / Fracture", url: "/ortho", icon: Bone },
   { title: "Reports / X-Ray", url: "/reports", icon: FileText },
   { title: "Analytics", url: "/analytics", icon: BarChart3 },
   { title: "WhatsApp", url: "/whatsapp", icon: MessageCircle },
