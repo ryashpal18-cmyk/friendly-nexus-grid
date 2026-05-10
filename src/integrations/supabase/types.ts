@@ -167,6 +167,117 @@ export type Database = {
         }
         Relationships: []
       }
+      fracture_cases: {
+        Row: {
+          body_part: string | null
+          cause: string | null
+          created_at: string
+          doctor_name: string | null
+          doctor_notes: string | null
+          followup_days: number
+          fracture_type: string | null
+          hospital_name: string | null
+          id: string
+          next_followup_date: string | null
+          patient_id: string
+          patient_type: string
+          plaster_date: string | null
+          plaster_status: string
+          plaster_type: string | null
+          referral_reason: string | null
+          side: string | null
+          updated_at: string
+        }
+        Insert: {
+          body_part?: string | null
+          cause?: string | null
+          created_at?: string
+          doctor_name?: string | null
+          doctor_notes?: string | null
+          followup_days?: number
+          fracture_type?: string | null
+          hospital_name?: string | null
+          id?: string
+          next_followup_date?: string | null
+          patient_id: string
+          patient_type?: string
+          plaster_date?: string | null
+          plaster_status?: string
+          plaster_type?: string | null
+          referral_reason?: string | null
+          side?: string | null
+          updated_at?: string
+        }
+        Update: {
+          body_part?: string | null
+          cause?: string | null
+          created_at?: string
+          doctor_name?: string | null
+          doctor_notes?: string | null
+          followup_days?: number
+          fracture_type?: string | null
+          hospital_name?: string | null
+          id?: string
+          next_followup_date?: string | null
+          patient_id?: string
+          patient_type?: string
+          plaster_date?: string | null
+          plaster_status?: string
+          plaster_type?: string | null
+          referral_reason?: string | null
+          side?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      fracture_xrays: {
+        Row: {
+          created_at: string
+          file_url: string
+          fracture_case_id: string
+          id: string
+          image_date: string
+          patient_id: string
+        }
+        Insert: {
+          created_at?: string
+          file_url: string
+          fracture_case_id: string
+          id?: string
+          image_date?: string
+          patient_id: string
+        }
+        Update: {
+          created_at?: string
+          file_url?: string
+          fracture_case_id?: string
+          id?: string
+          image_date?: string
+          patient_id?: string
+        }
+        Relationships: []
+      }
+      hospitals: {
+        Row: {
+          created_at: string
+          doctor_name: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          doctor_name?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          doctor_name?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
       invoice_medicine_mapping: {
         Row: {
           created_at: string
