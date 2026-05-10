@@ -123,6 +123,10 @@ const App = () => (
               </ProtectedRoute>
             }
           />
+          <Route path="/medicine-master" element={<ProtectedRoute><MedicineMaster /></ProtectedRoute>} />
+          <Route path="/patient-medicine" element={<ProtectedRoute><PatientMedicine /></ProtectedRoute>} />
+          <Route path="/patient-profile/:id" element={<ProtectedRoute><PatientProfile /></ProtectedRoute>} />
+          <Route path="/ortho" element={<ProtectedRoute><Ortho /></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
