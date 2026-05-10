@@ -16,6 +16,10 @@ import Reports from "./pages/Reports";
 import Analytics from "./pages/Analytics";
 import SettingsPage from "./pages/SettingsPage";
 import WhatsApp from "./pages/WhatsApp";
+import MedicineMaster from "./pages/MedicineMaster";
+import PatientMedicine from "./pages/PatientMedicine";
+import PatientProfile from "./pages/PatientProfile";
+import Ortho from "./pages/Ortho";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 
