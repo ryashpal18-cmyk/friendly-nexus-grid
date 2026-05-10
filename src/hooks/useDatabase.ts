@@ -230,7 +230,7 @@ export function useUpdateAppointment() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, ...updates }: { id: string } & Record<string, any>) => {
-      const { data, error } = await supabase.from("appointments").update(updates).eq("id", id).select().single();
+      const { data, error } = await supabase.from("appointments").update(updates as any).eq("id", id).select().single();
       if (error) throw error;
       return data;
     },
@@ -256,7 +256,7 @@ export function useUpdateBed() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, ...updates }: { id: string } & Record<string, any>) => {
-      const { data, error } = await supabase.from("beds").update(updates).eq("id", id).select().single();
+      const { data, error } = await supabase.from("beds").update(updates as any).eq("id", id).select().single();
       if (error) throw error;
       return data;
     },
