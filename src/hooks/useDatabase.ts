@@ -185,3 +185,178 @@ export function saveLocalData(type: string, data: any) {
     localStorage.setItem(`local_${type}`, JSON.stringify(existing));
   } catch {}
 }
+
+// ─── Restored hooks for existing pages ───
+export function useAppointments() {
+  return useQuery({
+    queryKey: ["appointments"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("appointments")
+        .select("*, patients(name, mobile)")
+        .order("date", { ascending: false })
+        .order("time_slot", { ascending: true });
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+export function useAddAppointment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (a: any) => {
+      const { data, error } = await supabase.from("appointments").insert(a).select().single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["appointments"] }),
+  });
+}
+
+export function useUpdateAppointment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...updates }: { id: string } & Record<string, any>) => {
+      const { data, error } = await supabase.from("appointments").update(updates).eq("id", id).select().single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["appointments"] }),
+  });
+}
+
+export function useBeds() {
+  return useQuery({
+    queryKey: ["beds"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("beds")
+        .select("*, patients(name)")
+        .order("bed_number", { ascending: true });
+      if (error) throw error;
+      return data as any[];
+    },
+  });
+}
+
+export function useUpdateBed() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...updates }: { id: string } & Record<string, any>) => {
+      const { data, error } = await supabase.from("beds").update(updates).eq("id", id).select().single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["beds"] }),
+  });
+}
+
+export function useAddPatient() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (p: any) => {
+      const { data, error } = await supabase.from("patients").insert(p).select().single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["patients"] }),
+  });
+}
+
+export function useSearchPatients(search: string) {
+  return useQuery({
+    queryKey: ["patients", "search", search],
+    queryFn: async () => {
+      if (!search) return [] as any[];
+      const { data, error } = await supabase
+        .from("patients")
+        .select("*")
+        .or(`name.ilike.%${search}%,mobile.ilike.%${search}%`)
+        .limit(20);
+      if (error) throw error;
+      return data as any[];
+    },
+    enabled: search.length > 0,
+  });
+}
+
+export function useAddPrescription() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (p: any) => {
+      const { data, error } = await supabase.from("prescriptions").insert(p).select().single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["prescriptions"] }),
+  });
+}
+
+export function useAddPhysioSession() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (s: any) => {
+      const { data, error } = await supabase.from("physiotherapy_sessions").insert(s).select().single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["physio_sessions"] }),
+  });
+}
+
+export function useXrayReports() {
+  return useQuery({
+    queryKey: ["xray_reports"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("xray_reports")
+        .select("*, patients(name)")
+        .order("uploaded_at", { ascending: false });
+      if (error) throw error;
+      return data as any[];
+    },
+  });
+}
+
+export function useAddXrayReport() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (r: any) => {
+      const { data, error } = await supabase.from("xray_reports").insert(r).select().single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["xray_reports"] }),
+  });
+}
+
+export function useDeletePatient() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, logData }: { id: string; logData?: any }) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (logData) {
+        await supabase.from("deleted_records_log" as any).insert({
+          table_name: "patients",
+          record_id: id,
+          record_data: logData,
+          deleted_by: user?.id,
+        } as any);
+      }
+      await supabase.from("appointments").delete().eq("patient_id", id);
+      await supabase.from("prescriptions").delete().eq("patient_id", id);
+      await supabase.from("billing").delete().eq("patient_id", id);
+      await supabase.from("physiotherapy_sessions").delete().eq("patient_id", id);
+      await supabase.from("xray_reports").delete().eq("patient_id", id);
+      await supabase.from("medical_history").delete().eq("patient_id", id);
+      const { error } = await supabase.from("patients").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["patients"] });
+      qc.invalidateQueries({ queryKey: ["billing"] });
+      qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
+    },
+  });
+}
