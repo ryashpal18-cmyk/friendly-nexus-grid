@@ -105,10 +105,10 @@ Balaji Ortho Care Center`;
         </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard title="Today's Patients" value={stats?.todayPatients ?? 0} icon={Users} variant="primary" />
+          <StatCard title="Today's Patients" value={todayBills?.length ?? 0} icon={Users} variant="primary" />
           <StatCard title="Appointments" value={stats?.todayAppointments ?? 0} icon={Calendar} variant="secondary" />
-          <StatCard title="Pending Payments" value={`₹${(stats?.pendingPayments ?? 0).toLocaleString()}`} icon={Receipt} variant="warning" />
-          <StatCard title="Today's Revenue" value={`₹${(stats?.todayRevenue ?? 0).toLocaleString()}`} icon={IndianRupee} variant="success" />
+          <StatCard title="Pending Payments" value={`₹${pendingTotal.toLocaleString()}`} icon={Receipt} variant="warning" />
+          <StatCard title="Today's Revenue" value={`₹${todayTotalAmount.toLocaleString()}`} icon={IndianRupee} variant="success" />
         </div>
 
         <Card className="border-primary/20">
