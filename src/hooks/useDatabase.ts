@@ -1,77 +1,100 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import type { Database } from "@/integrations/supabase/types";
 
-type Patient = Database["public"]["Tables"]["patients"]["Row"];
-type PatientInsert = Database["public"]["Tables"]["patients"]["Insert"];
-type Appointment = Database["public"]["Tables"]["appointments"]["Row"];
-type AppointmentInsert = Database["public"]["Tables"]["appointments"]["Insert"];
-type Prescription = Database["public"]["Tables"]["prescriptions"]["Row"];
-type PrescriptionInsert = Database["public"]["Tables"]["prescriptions"]["Insert"];
-type Billing = Database["public"]["Tables"]["billing"]["Row"];
-type BillingInsert = Database["public"]["Tables"]["billing"]["Insert"];
-type Payment = Database["public"]["Tables"]["payments"]["Row"];
-type PaymentInsert = Database["public"]["Tables"]["payments"]["Insert"];
-type Bed = Database["public"]["Tables"]["beds"]["Row"];
-type PhysioSession = Database["public"]["Tables"]["physiotherapy_sessions"]["Row"];
-type PhysioInsert = Database["public"]["Tables"]["physiotherapy_sessions"]["Insert"];
-type XrayReport = Database["public"]["Tables"]["xray_reports"]["Row"];
-type XrayInsert = Database["public"]["Tables"]["xray_reports"]["Insert"];
-type ReportPayment = Database["public"]["Tables"]["report_payments"]["Row"];
+export function useDashboardStats() {
+  const today = new Date().toISOString().split("T")[0];
+  return useQuery({
+    queryKey: ["dashboard-stats"],
+    staleTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+    queryFn: async () => {
+      const [patients, appointments, pendingBills, beds, todayBills] = await Promise.all([
+        supabase.from("patients").select("id", { count: "exact", head: true }),
+        supabase.from("appointments").select("id", { count: "exact", head: true }).eq("date", today),
+        supabase.from("billing").select("amount, amount_paid, status").in("status", ["Pending", "Partial"]),
+        supabase.from("beds").select("id, status"),
+        supabase.from("billing").select("amount").gte("created_at", `${today}T00:00:00`).lte("created_at", `${today}T23:59:59`),
+      ]);
+      const pendingTotal = pendingBills.data?.reduce((sum, b) => sum + Math.max(Number(b.amount || 0) - Number((b as any).amount_paid || 0), 0), 0) || 0;
+      const todayTotal = todayBills.data?.reduce((sum, b) => sum + Number(b.amount || 0), 0) || 0;
+      return {
+        todayPatients: patients.count || 0,
+        todayAppointments: appointments.count || 0,
+        pendingPayments: pendingTotal,
+        bedsOccupied: beds.data?.filter(b => b.status === "occupied").length || 0,
+        totalBeds: beds.data?.length || 0,
+        todayRevenue: todayTotal,
+      };
+    },
+  });
+}
 
-// ─── Patients ───
+export function useTodayBills() {
+  const today = new Date().toISOString().split("T")[0];
+  return useQuery({
+    queryKey: ["billing", "today"],
+    staleTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("billing").select("*, patients(name, mobile, address)").gte("created_at", `${today}T00:00:00`).lte("created_at", `${today}T23:59:59`).order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+export function usePendingBills() {
+  return useQuery({
+    queryKey: ["billing", "pending"],
+    staleTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("billing").select("*, patients(name, mobile, address)").in("status", ["Pending", "Partial"]).order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+export function useBills() {
+  return useQuery({
+    queryKey: ["billing", "all"],
+    staleTime: 0,
+    refetchOnMount: true,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("billing").select("*, patients(name, mobile, address)").order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
 export function usePatients() {
   return useQuery({
     queryKey: ["patients"],
+    staleTime: 30000,
     queryFn: async () => {
-      const { data, error } = await supabase.from("patients").select("*").order("created_at", { ascending: false });
+      const { data, error } = await supabase.from("patients").select("*").order("name");
       if (error) throw error;
-      return data as Patient[];
+      return data;
     },
   });
 }
 
-export function useAddPatient() {
+export function useUpdateBill() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (p: PatientInsert) => {
-      const { data, error } = await supabase.from("patients").insert(p).select().single();
+    mutationFn: async (bill: { id: string; amount: number; amount_paid: number; status: string }) => {
+      const { data, error } = await supabase.from("billing").update({ amount: bill.amount, amount_paid: bill.amount_paid, status: bill.status }).eq("id", bill.id).select().single();
       if (error) throw error;
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["patients"] }),
-  });
-}
-
-export function useSearchPatients(search: string) {
-  return useQuery({
-    queryKey: ["patients", "search", search],
-    queryFn: async () => {
-      if (!search) return [];
-      const { data, error } = await supabase
-        .from("patients")
-        .select("*")
-        .or(`name.ilike.%${search}%,mobile.ilike.%${search}%`)
-        .limit(20);
-      if (error) throw error;
-      return data as Patient[];
-    },
-    enabled: search.length > 0,
-  });
-}
-
-// ─── Appointments ───
-export function useAppointments() {
-  return useQuery({
-    queryKey: ["appointments"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("appointments")
-        .select("*, patients(name, mobile)")
-        .order("date", { ascending: false })
-        .order("time_slot", { ascending: true });
-      if (error) throw error;
-      return data;
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["billing"] });
+      qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
     },
   });
 }
@@ -80,81 +103,48 @@ export function useTodayAppointments() {
   const today = new Date().toISOString().split("T")[0];
   return useQuery({
     queryKey: ["appointments", "today"],
+    staleTime: 0,
+    refetchOnMount: true,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("appointments")
-        .select("*, patients(name, mobile)")
-        .eq("date", today)
-        .order("time_slot", { ascending: true });
+      const { data, error } = await supabase.from("appointments").select("*, patients(name, mobile)").eq("date", today).order("time");
       if (error) throw error;
       return data;
     },
   });
 }
 
-export function useAddAppointment() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (a: AppointmentInsert) => {
-      const { data, error } = await supabase.from("appointments").insert(a).select().single();
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["appointments"] }),
-  });
-}
-
-export function useUpdateAppointment() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ id, ...updates }: { id: string } & Partial<Appointment>) => {
-      const { data, error } = await supabase.from("appointments").update(updates).eq("id", id).select().single();
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["appointments"] }),
-  });
-}
-
-// ─── Prescriptions ───
 export function usePrescriptions() {
   return useQuery({
     queryKey: ["prescriptions"],
+    staleTime: 30000,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("prescriptions")
-        .select("*, patients(name)")
-        .order("created_at", { ascending: false })
-        .limit(20);
+      const { data, error } = await supabase.from("prescriptions").select("*, patients(name)").order("created_at", { ascending: false }).limit(20);
       if (error) throw error;
       return data;
     },
   });
 }
 
-export function useAddPrescription() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (p: PrescriptionInsert) => {
-      const { data, error } = await supabase.from("prescriptions").insert(p).select().single();
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["prescriptions"] }),
-  });
-}
-
-// ─── Billing ───
-export function useBills() {
+export function usePhysioSessions() {
   return useQuery({
-    queryKey: ["billing"],
+    queryKey: ["physio_sessions"],
+    staleTime: 30000,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("billing")
-        .select("*, patients(name, mobile, address)")
-        .order("created_at", { ascending: false });
+      const { data, error } = await supabase.from("physiotherapy_sessions").select("*, patients(name)").order("created_at", { ascending: false }).limit(20);
       if (error) throw error;
       return data;
+    },
+  });
+}
+
+export function useReportPayments() {
+  return useQuery({
+    queryKey: ["report_payments"],
+    staleTime: 30000,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("billing").select("amount, amount_paid, created_at, status").eq("status", "Paid").order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data || []).map(b => ({ amount: Number(b.amount_paid || b.amount || 0), payment_date: b.created_at?.slice(0, 10) }));
     },
   });
 }
@@ -162,276 +152,36 @@ export function useBills() {
 export function useAddBill() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (b: BillingInsert) => {
-      const { data, error } = await supabase.from("billing").insert(b).select("*, patients(name, mobile, address)").single();
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["billing"] }),
-  });
-}
-
-export function useUpdateBill() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ id, ...updates }: { id: string } & Partial<Billing>) => {
-      const { data, error } = await supabase.from("billing").update(updates).eq("id", id).select().single();
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["billing"] }),
-  });
-}
-
-// ─── Pending Due Bills ───
-export function usePendingBills() {
-  return useQuery({
-    queryKey: ["billing", "pending"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("billing")
-        .select("*, patients(name, mobile, address)")
-        .in("status", ["Pending", "Partial"])
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data;
-    },
-  });
-}
-
-// ─── Payments ───
-export function useAddPayment() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (p: PaymentInsert) => {
-      const { data, error } = await supabase.from("payments").insert(p).select().single();
+    mutationFn: async (bill: any) => {
+      const { data, error } = await supabase.from("billing").insert(bill).select("*, patients(name, mobile)").single();
       if (error) throw error;
       return data;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["billing"] });
-      qc.invalidateQueries({ queryKey: ["payments"] });
+      qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
     },
   });
 }
 
-// ─── Beds ───
-export function useBeds() {
-  return useQuery({
-    queryKey: ["beds"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("beds")
-        .select("*, patients(name)")
-        .order("bed_number", { ascending: true });
-      if (error) throw error;
-      return data;
-    },
-  });
-}
-
-export function useUpdateBed() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ id, ...updates }: { id: string } & Partial<Bed>) => {
-      const { data, error } = await supabase.from("beds").update(updates).eq("id", id).select().single();
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["beds"] }),
-  });
-}
-
-// ─── Physiotherapy ───
-export function usePhysioSessions() {
-  return useQuery({
-    queryKey: ["physiotherapy"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("physiotherapy_sessions")
-        .select("*, patients(name)")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data;
-    },
-  });
-}
-
-export function useAddPhysioSession() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (s: PhysioInsert) => {
-      const { data, error } = await supabase.from("physiotherapy_sessions").insert(s).select().single();
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["physiotherapy"] }),
-  });
-}
-
-// ─── X-Ray Reports ───
-export function useXrayReports() {
-  return useQuery({
-    queryKey: ["xray_reports"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("xray_reports")
-        .select("*, patients(name)")
-        .order("uploaded_at", { ascending: false });
-      if (error) throw error;
-      return data;
-    },
-  });
-}
-
-export function useAddXrayReport() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (r: XrayInsert) => {
-      const { data, error } = await supabase.from("xray_reports").insert(r).select().single();
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["xray_reports"] }),
-  });
-}
-
-export function useReportPayments() {
-  return useQuery({
-    queryKey: ["report_payments"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("report_payments")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data as ReportPayment[];
-    },
-  });
-}
-
-// ─── Today's Bills ───
-export function useTodayBills() {
-  const today = new Date().toISOString().split("T")[0];
-  return useQuery({
-    queryKey: ["billing", "today"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("billing")
-        .select("*, patients(name, mobile)")
-        .gte("created_at", `${today}T00:00:00`)
-        .lte("created_at", `${today}T23:59:59`)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data;
-    },
-  });
-}
-
-// ─── Dashboard Stats ───
-export function useDashboardStats() {
-  const today = new Date().toISOString().split("T")[0];
-  return useQuery({
-    queryKey: ["dashboard-stats"],
-    queryFn: async () => {
-      const [patients, appointments, pendingBills, beds, todayBills] = await Promise.all([
-        supabase.from("patients").select("id", { count: "exact", head: true }),
-        supabase.from("appointments").select("id", { count: "exact", head: true }).eq("date", today),
-        supabase.from("billing").select("amount").eq("status", "Pending"),
-        supabase.from("beds").select("id, status"),
-        supabase.from("billing").select("amount").gte("created_at", `${today}T00:00:00`).lte("created_at", `${today}T23:59:59`),
-      ]);
-      
-      const pendingTotal = pendingBills.data?.reduce((sum, b) => sum + Number(b.amount), 0) || 0;
-      const totalBeds = beds.data?.length || 0;
-      const occupiedBeds = beds.data?.filter(b => b.status === "occupied").length || 0;
-      const todayTotal = todayBills.data?.reduce((sum, b) => sum + Number(b.amount), 0) || 0;
-
-      return {
-        todayPatients: appointments.count || 0,
-        todayAppointments: appointments.count || 0,
-        pendingPayments: pendingTotal,
-        bedsOccupied: occupiedBeds,
-        totalBeds,
-        todayRevenue: todayTotal,
-      };
-    },
-  });
-}
-
-// ─── Delete Bill ───
 export function useDeleteBill() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, logData }: { id: string; logData?: any }) => {
-      // Log for recovery
-      if (logData) {
-        const { data: { user } } = await supabase.auth.getUser();
-        await supabase.from("deleted_records_log" as any).insert({
-          table_name: "billing",
-          record_id: id,
-          record_data: logData,
-          deleted_by: user?.id,
-        } as any);
-      }
-      // Delete related payments first
-      await supabase.from("payments").delete().eq("billing_id", id);
-      // Delete the bill
+    mutationFn: async (id: string) => {
       const { error } = await supabase.from("billing").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["bills"] });
-      qc.invalidateQueries({ queryKey: ["dashboard"] });
+      qc.invalidateQueries({ queryKey: ["billing"] });
+      qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
     },
   });
 }
 
-// ─── Delete Patient ───
-export function useDeletePatient() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ id, logData }: { id: string; logData?: any }) => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (logData) {
-        await supabase.from("deleted_records_log" as any).insert({
-          table_name: "patients",
-          record_id: id,
-          record_data: logData,
-          deleted_by: user?.id,
-        } as any);
-      }
-      // Delete related records
-      await supabase.from("appointments").delete().eq("patient_id", id);
-      await supabase.from("prescriptions").delete().eq("patient_id", id);
-      await supabase.from("billing").delete().eq("patient_id", id);
-      await supabase.from("physiotherapy_sessions").delete().eq("patient_id", id);
-      await supabase.from("xray_reports").delete().eq("patient_id", id);
-      await supabase.from("medical_history").delete().eq("patient_id", id);
-      // Delete patient
-      const { error } = await supabase.from("patients").delete().eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["patients"] });
-      qc.invalidateQueries({ queryKey: ["bills"] });
-      qc.invalidateQueries({ queryKey: ["dashboard"] });
-    },
-  });
-}
-
-// ─── Restore Deleted Record ───
-export function useRestoreRecord() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ tableName, recordData }: { tableName: string; recordData: any }) => {
-      const { error } = await supabase.from(tableName as any).insert(recordData as any);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["patients"] });
-      qc.invalidateQueries({ queryKey: ["bills"] });
-      qc.invalidateQueries({ queryKey: ["dashboard"] });
-    },
-  });
+export function saveLocalData(type: string, data: any) {
+  try {
+    const existing = JSON.parse(localStorage.getItem(`local_${type}`) || "[]");
+    existing.push({ ...data, savedAt: new Date().toISOString() });
+    localStorage.setItem(`local_${type}`, JSON.stringify(existing));
+  } catch {}
 }
