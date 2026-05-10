@@ -167,7 +167,19 @@ export function useAddBill() {
 export function useDeleteBill() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async (arg: string | { id: string; logData?: any }) => {
+      const id = typeof arg === "string" ? arg : arg.id;
+      const logData = typeof arg === "string" ? null : arg.logData;
+      if (logData) {
+        const { data: { user } } = await supabase.auth.getUser();
+        await supabase.from("deleted_records_log" as any).insert({
+          table_name: "billing",
+          record_id: id,
+          record_data: logData,
+          deleted_by: user?.id,
+        } as any);
+      }
+      await supabase.from("payments").delete().eq("billing_id", id);
       const { error } = await supabase.from("billing").delete().eq("id", id);
       if (error) throw error;
     },
