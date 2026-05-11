@@ -15,6 +15,7 @@ import {
   ClipboardList,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
+import logo from "@/assets/logo.png";
 import { useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -66,8 +67,8 @@ export function AppSidebar() {
     <Sidebar collapsible="icon" className="border-r-0">
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-lg bg-sidebar-primary flex items-center justify-center flex-shrink-0">
-            <Stethoscope className="h-5 w-5 text-sidebar-primary-foreground" />
+          <div className="h-9 w-9 rounded-lg bg-white flex items-center justify-center flex-shrink-0 overflow-hidden">
+            <img src={logo} alt="Balaji Ortho Care Center" className="h-full w-full object-contain" />
           </div>
           {!collapsed && (
             <div className="flex flex-col min-w-0">
