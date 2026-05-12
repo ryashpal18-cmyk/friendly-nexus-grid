@@ -103,6 +103,8 @@ export function useFollowupsAround() {
 export function useHospitals() {
   return useQuery({
     queryKey: ["hospitals"],
+    staleTime: 0,
+    refetchOnMount: "always",
     queryFn: async () => {
       const { data, error } = await supabase
         .from("hospitals" as any)
@@ -133,6 +135,8 @@ export function useAddHospital() {
 export function useFractureXrays(caseId?: string) {
   return useQuery({
     queryKey: ["fracture_xrays", caseId],
+    staleTime: 0,
+    refetchOnMount: "always",
     queryFn: async () => {
       if (!caseId) return [];
       const { data, error } = await supabase
