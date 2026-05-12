@@ -5,373 +5,271 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Upload, X, MessageCircle, Save, Plus, Search } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Save, MessageCircle, CalendarDays, Plane, Send, Bone, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { BodyDiagram, type BodySelection } from "@/components/ortho/BodyDiagram";
-import {
-  useAddFractureCase,
-  useAddHospital,
-  useFractureCases,
-  useFractureXrays,
-  useHospitals,
-  uploadFractureXray,
-  useUpdateFractureCase,
-} from "@/hooks/useOrtho";
+import { useAddFractureCase, useFractureCases, useFollowupsAround } from "@/hooks/useOrtho";
 import { useAddPatient, useSearchPatients } from "@/hooks/useDatabase";
-import { buildFractureMessage, buildNormalMessage, openWhatsApp } from "@/lib/whatsappOrtho";
-
-type PatientType = "normal" | "fracture" | "referred";
+import { sendSMS } from "@/services/smsService";
 
 const FRACTURE_TYPES = ["Simple", "Compound", "Hairline", "Dislocation"];
-const CAUSES = ["Fall", "Accident", "Sports", "Other"];
-const PLASTER_TYPES = ["POP", "Fiber"];
-const REFERRAL_REASONS = ["Surgery Required", "Specialist Opinion", "MRI / CT Scan", "Higher Center", "Other"];
+const PLASTER_TYPES = ["POP", "Fiber", "Slab", "None"];
+const BODY_PARTS = ["Hand", "Wrist", "Elbow", "Shoulder", "Leg", "Knee", "Ankle", "Foot", "Hip", "Spine", "Other"];
 
-function addDaysISO(base: string, days: number) {
+const LEAVE_KEY = "ortho_leave_dates";
+const getLeaves = (): string[] => {
+  try { return JSON.parse(localStorage.getItem(LEAVE_KEY) || "[]"); } catch { return []; }
+};
+const setLeaves = (l: string[]) => localStorage.setItem(LEAVE_KEY, JSON.stringify(l));
+
+const addDaysISO = (base: string, days: number) => {
   const d = new Date(base);
   d.setDate(d.getDate() + days);
   return d.toISOString().slice(0, 10);
-}
+};
+const fmt = (iso: string) => new Date(iso).toLocaleDateString("en-IN", { day: "2-digit", month: "short", weekday: "short" });
+
+const followupSMS = (name: string, date: string) =>
+  `Namaste ${name}, aapka follow-up Balaji Ortho Care Center me ${fmt(date)} ko hai. Dr. S. S. Rathore. Samay par aaye. Dhanyawad.`;
+const leaveSMS = (name: string, oldDate: string, newDate: string) =>
+  `Namaste ${name}, ${fmt(oldDate)} ko clinic band rahega. Aapka follow-up ${fmt(newDate)} ko shift kar diya gaya hai. Balaji Ortho Care Center.`;
 
 export default function Ortho() {
   const todayIso = new Date().toISOString().slice(0, 10);
 
-  // ─── Patient (quick add or search) ───
-  const [patientName, setPatientName] = useState("");
-  const [patientAge, setPatientAge] = useState("");
-  const [patientMobile, setPatientMobile] = useState("");
-  const [selectedPatient, setSelectedPatient] = useState<any>(null);
-  const { data: searchHits } = useSearchPatients(
-    patientMobile.length >= 4 ? patientMobile : patientName.length >= 2 ? patientName : "",
-  );
+  // ─── Entry form ───
+  const [name, setName] = useState("");
+  const [mobile, setMobile] = useState("");
+  const [age, setAge] = useState("");
+  const [selPatient, setSelPatient] = useState<any>(null);
+  const { data: hits } = useSearchPatients(mobile.length >= 4 ? mobile : name.length >= 2 ? name : "");
   const addPatient = useAddPatient();
 
-  // ─── Patient type ───
-  const [patientType, setPatientType] = useState<PatientType>("fracture");
-
-  // ─── Fracture ───
-  const [body, setBody] = useState<BodySelection | null>(null);
+  const [bodyPart, setBodyPart] = useState("");
+  const [side, setSide] = useState("Right");
   const [fractureType, setFractureType] = useState("");
-  const [cause, setCause] = useState("");
   const [plasterType, setPlasterType] = useState("POP");
   const [plasterDate, setPlasterDate] = useState(todayIso);
   const [followupDays, setFollowupDays] = useState("7");
-  const [doctorNotes, setDoctorNotes] = useState("");
-  const nextFollowup = useMemo(
-    () => addDaysISO(plasterDate, Number(followupDays) || 0),
-    [plasterDate, followupDays],
-  );
-
-  // ─── Referred ───
-  const [hospitalName, setHospitalName] = useState("");
-  const [hospitalDoctor, setHospitalDoctor] = useState("");
-  const [referralReason, setReferralReason] = useState("");
-  const [newHospital, setNewHospital] = useState(false);
-  const { data: hospitals } = useHospitals();
-  const addHospital = useAddHospital();
-
-  // ─── Saved case (for X-ray + WhatsApp) ───
-  const [savedCaseId, setSavedCaseId] = useState<string | null>(null);
-  const [savedCaseData, setSavedCaseData] = useState<any>(null);
-  const { data: xrays, refetch: refetchXrays } = useFractureXrays(savedCaseId || undefined);
+  const [notes, setNotes] = useState("");
+  const nextFollowup = useMemo(() => addDaysISO(plasterDate, Number(followupDays) || 7), [plasterDate, followupDays]);
 
   const addCase = useAddFractureCase();
-  const updateCase = useUpdateFractureCase();
-  const { data: recentCases } = useFractureCases();
+  const { data: cases, refetch: refetchCases } = useFractureCases();
+  const { data: followups, refetch: refetchFollowups } = useFollowupsAround();
 
-  // Auto-fill hospital doctor on hospital pick
-  useEffect(() => {
-    if (!newHospital && hospitalName) {
-      const h = (hospitals || []).find((x: any) => x.name === hospitalName);
-      if (h?.doctor_name) setHospitalDoctor(h.doctor_name);
-    }
-  }, [hospitalName, hospitals, newHospital]);
-
-  const pickPatient = (p: any) => {
-    setSelectedPatient(p);
-    setPatientName(p.name);
-    setPatientMobile(p.mobile || "");
-    setPatientAge(String(p.age ?? ""));
-  };
-
-  const ensurePatient = async () => {
-    if (selectedPatient) return selectedPatient;
-    if (!patientName || !patientMobile) {
-      toast.error("Patient name and mobile required");
-      return null;
-    }
-    const p = await addPatient.mutateAsync({
-      name: patientName,
-      mobile: patientMobile,
-      age: patientAge ? Number(patientAge) : null,
-    } as any);
-    setSelectedPatient(p);
-    return p;
+  const pickPatient = (p: any) => { setSelPatient(p); setName(p.name); setMobile(p.mobile || ""); setAge(String(p.age ?? "")); };
+  const resetForm = () => {
+    setName(""); setMobile(""); setAge(""); setSelPatient(null);
+    setBodyPart(""); setSide("Right"); setFractureType(""); setPlasterType("POP");
+    setPlasterDate(todayIso); setFollowupDays("7"); setNotes("");
   };
 
   const handleSave = async () => {
-    const patient = await ensurePatient();
-    if (!patient) return;
-
-    if (patientType === "fracture") {
-      if (!body) return toast.error("Select body part");
-      if (!fractureType) return toast.error("Select fracture type");
+    if (!name || !mobile) return toast.error("Naam aur mobile zaroori hai");
+    if (!bodyPart || !fractureType) return toast.error("Body part aur fracture type select karo");
+    let patient = selPatient;
+    if (!patient) {
+      patient = await addPatient.mutateAsync({ name, mobile, age: age ? Number(age) : null } as any);
     }
-    if (patientType === "referred") {
-      if (!hospitalName) return toast.error("Hospital required");
-      if (newHospital) {
-        try {
-          await addHospital.mutateAsync({ name: hospitalName, doctor_name: hospitalDoctor });
-        } catch {
-          /* ignore duplicate */
-        }
-      }
-    }
-
-    const payload: any = {
-      patient_id: patient.id,
-      patient_type: patientType,
-      doctor_notes: doctorNotes || null,
-    };
-    if (patientType === "fracture") {
-      Object.assign(payload, {
-        body_part: body!.body_part,
-        side: body!.side,
-        fracture_type: fractureType,
-        cause: cause || null,
-        plaster_type: plasterType,
-        plaster_date: plasterDate,
+    try {
+      await addCase.mutateAsync({
+        patient_id: patient.id,
+        patient_type: "fracture",
+        body_part: bodyPart, side, fracture_type: fractureType,
+        plaster_type: plasterType, plaster_date: plasterDate,
         followup_days: Number(followupDays) || 7,
         next_followup_date: nextFollowup,
         plaster_status: "Active",
-      });
-    }
-    if (patientType === "referred") {
-      Object.assign(payload, {
-        hospital_name: hospitalName,
-        doctor_name: hospitalDoctor || null,
-        referral_reason: referralReason || null,
-      });
-    }
-
-    try {
-      const saved: any = await addCase.mutateAsync(payload);
-      setSavedCaseId(saved.id);
-      setSavedCaseData({ ...saved, patients: patient });
+        doctor_notes: notes || null,
+      } as any);
       toast.success("Case saved");
+      // Auto SMS
+      const ok = await sendSMS(mobile, followupSMS(name, nextFollowup));
+      toast[ok ? "success" : "error"](ok ? "SMS sent" : "SMS failed");
+      resetForm();
+      refetchCases(); refetchFollowups();
     } catch (e: any) {
       toast.error(e.message || "Save failed");
     }
   };
 
-  const handleXrayUpload = async (files: FileList | null) => {
-    if (!files || !savedCaseId || !selectedPatient) {
-      toast.error("Save case first");
-      return;
+  // ─── 7-day calendar ───
+  const next7 = useMemo(() => Array.from({ length: 7 }, (_, i) => addDaysISO(todayIso, i)), [todayIso]);
+  const followupsByDate = useMemo(() => {
+    const m: Record<string, any[]> = {};
+    (followups || []).forEach((f: any) => {
+      if (!f.next_followup_date) return;
+      (m[f.next_followup_date] ||= []).push(f);
+    });
+    return m;
+  }, [followups]);
+
+  // ─── Leave manager ───
+  const [leaves, setLeavesState] = useState<string[]>(getLeaves());
+  const [leaveDate, setLeaveDate] = useState(todayIso);
+  const [leaveBusy, setLeaveBusy] = useState(false);
+
+  const addSingleLeave = async () => {
+    if (!leaveDate) return;
+    const affected = (followups || []).filter((f: any) => f.next_followup_date === leaveDate);
+    if (!affected.length) {
+      const updated = [...new Set([...leaves, leaveDate])];
+      setLeaves(updated); setLeavesState(updated);
+      return toast.success("Leave saved (no patients on this date)");
     }
-    try {
-      for (const f of Array.from(files)) {
-        await uploadFractureXray(savedCaseId, selectedPatient.id, f);
-      }
-      toast.success("X-ray uploaded");
-      refetchXrays();
-    } catch (e: any) {
-      toast.error(e.message || "Upload failed");
+    setLeaveBusy(true);
+    let sent = 0;
+    for (const f of affected) {
+      const newDate = addDaysISO(leaveDate, 1);
+      const ok = await sendSMS(f.patients?.mobile || "", leaveSMS(f.patients?.name || "Patient", leaveDate, newDate));
+      if (ok) sent++;
     }
+    const updated = [...new Set([...leaves, leaveDate])];
+    setLeaves(updated); setLeavesState(updated);
+    setLeaveBusy(false);
+    toast.success(`Leave set, ${sent}/${affected.length} SMS sent`);
   };
 
-  const handleSendWhatsApp = () => {
-    if (!savedCaseData || !selectedPatient) {
-      toast.error("Save case first");
-      return;
+  const removeLeave = (d: string) => {
+    const updated = leaves.filter((x) => x !== d);
+    setLeaves(updated); setLeavesState(updated);
+  };
+
+  // ─── Long leave bulk SMS ───
+  const [longFrom, setLongFrom] = useState(todayIso);
+  const [longTo, setLongTo] = useState(addDaysISO(todayIso, 3));
+  const [longMsg, setLongMsg] = useState("");
+  const [longBusy, setLongBusy] = useState(false);
+
+  const longAffected = useMemo(() => {
+    return (followups || []).filter(
+      (f: any) => f.next_followup_date && f.next_followup_date >= longFrom && f.next_followup_date <= longTo
+    );
+  }, [followups, longFrom, longTo]);
+
+  const sendLongLeave = async () => {
+    if (!longAffected.length) return toast.error("Is range me koi follow-up nahi");
+    const msg = longMsg || `Namaste, Balaji Ortho Care Center ${fmt(longFrom)} se ${fmt(longTo)} tak band rahega. Kripya baad me visit kare. Dr. S. S. Rathore.`;
+    setLongBusy(true);
+    let sent = 0;
+    for (const f of longAffected) {
+      const personal = msg.replace("{name}", f.patients?.name || "Patient");
+      const ok = await sendSMS(f.patients?.mobile || "", personal);
+      if (ok) sent++;
     }
-    const msg =
-      patientType === "fracture"
-        ? buildFractureMessage(selectedPatient, null, savedCaseData)
-        : buildNormalMessage(selectedPatient, { service: "Consultation" } as any);
-    openWhatsApp(selectedPatient.mobile, msg);
+    // mark all dates as leave
+    const dates = new Set(leaves);
+    for (let d = longFrom; d <= longTo; d = addDaysISO(d, 1)) dates.add(d);
+    const updated = [...dates];
+    setLeaves(updated); setLeavesState(updated);
+    setLongBusy(false);
+    toast.success(`${sent}/${longAffected.length} SMS sent`);
   };
 
-  const updatePlasterStatus = async (status: string) => {
-    if (!savedCaseId) return;
-    await updateCase.mutateAsync({ id: savedCaseId, plaster_status: status } as any);
-    setSavedCaseData((d: any) => ({ ...d, plaster_status: status }));
-    toast.success(`Plaster marked ${status}`);
-  };
+  // ─── All patients ───
+  const [search, setSearch] = useState("");
+  const filteredCases = useMemo(() => {
+    const q = search.toLowerCase().trim();
+    if (!q) return cases || [];
+    return (cases || []).filter((c: any) =>
+      (c.patients?.name || "").toLowerCase().includes(q) ||
+      (c.patients?.mobile || "").includes(q) ||
+      (c.body_part || "").toLowerCase().includes(q)
+    );
+  }, [cases, search]);
 
-  const resetForm = () => {
-    setSelectedPatient(null);
-    setPatientName("");
-    setPatientMobile("");
-    setPatientAge("");
-    setBody(null);
-    setFractureType("");
-    setCause("");
-    setPlasterType("POP");
-    setPlasterDate(todayIso);
-    setFollowupDays("7");
-    setDoctorNotes("");
-    setHospitalName("");
-    setHospitalDoctor("");
-    setReferralReason("");
-    setNewHospital(false);
-    setSavedCaseId(null);
-    setSavedCaseData(null);
-    setPatientType("fracture");
+  const resendSMS = async (c: any) => {
+    if (!c.patients?.mobile || !c.next_followup_date) return toast.error("Mobile/date missing");
+    const ok = await sendSMS(c.patients.mobile, followupSMS(c.patients.name, c.next_followup_date));
+    toast[ok ? "success" : "error"](ok ? "SMS sent" : "SMS failed");
   };
 
   return (
     <DashboardLayout>
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-heading font-bold">🦴 Ortho — Fracture Entry</h1>
-          {savedCaseId && (
-            <Button variant="outline" size="sm" onClick={resetForm} className="gap-1">
-              <Plus className="h-4 w-4" /> New Entry
-            </Button>
-          )}
+        <div className="flex items-center gap-2">
+          <Bone className="h-6 w-6 text-primary" />
+          <h1 className="text-2xl font-heading font-bold">Ortho / Fracture Panel</h1>
         </div>
 
-        {/* Patient quick entry */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-heading">Patient</CardTitle>
-          </CardHeader>
-          <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div>
-              <Label>Mobile *</Label>
-              <Input
-                value={patientMobile}
-                onChange={(e) => {
-                  setPatientMobile(e.target.value.replace(/\D/g, "").slice(0, 10));
-                  setSelectedPatient(null);
-                }}
-                placeholder="10-digit"
-              />
-            </div>
-            <div>
-              <Label>Name *</Label>
-              <Input
-                value={patientName}
-                onChange={(e) => {
-                  setPatientName(e.target.value);
-                  setSelectedPatient(null);
-                }}
-              />
-            </div>
-            <div>
-              <Label>Age</Label>
-              <Input
-                type="number"
-                value={patientAge}
-                onChange={(e) => setPatientAge(e.target.value)}
-              />
-            </div>
-            {!selectedPatient && !!searchHits?.length && (
-              <div className="md:col-span-3 border rounded-md divide-y">
-                {searchHits.slice(0, 5).map((p: any) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    className="w-full text-left p-2 hover:bg-muted text-sm flex items-center justify-between"
-                    onClick={() => pickPatient(p)}
-                  >
-                    <span>
-                      <Search className="inline h-3 w-3 mr-1 text-muted-foreground" />
-                      {p.name}
-                    </span>
-                    <span className="text-xs text-muted-foreground">{p.mobile}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-            {selectedPatient && (
-              <div className="md:col-span-3 text-xs text-success">
-                ✓ Existing patient selected
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <Tabs defaultValue="entry" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 h-auto">
+            <TabsTrigger value="entry">New Entry</TabsTrigger>
+            <TabsTrigger value="calendar">7-Day Calendar</TabsTrigger>
+            <TabsTrigger value="leave">Leave</TabsTrigger>
+            <TabsTrigger value="bulk">Long Leave SMS</TabsTrigger>
+            <TabsTrigger value="all">All Patients</TabsTrigger>
+          </TabsList>
 
-        {/* Patient Type */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-heading">Patient Type</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <RadioGroup
-              value={patientType}
-              onValueChange={(v) => setPatientType(v as PatientType)}
-              className="grid grid-cols-1 sm:grid-cols-3 gap-3"
-            >
-              {(["normal", "fracture", "referred"] as PatientType[]).map((t) => (
-                <Label
-                  key={t}
-                  className={`flex items-center gap-2 border rounded-md p-3 cursor-pointer ${
-                    patientType === t ? "border-primary bg-primary/5" : ""
-                  }`}
-                >
-                  <RadioGroupItem value={t} />
-                  <span className="capitalize">{t} Patient</span>
-                </Label>
-              ))}
-            </RadioGroup>
-          </CardContent>
-        </Card>
-
-        {/* Fracture flow */}
-        {patientType === "fracture" && (
-          <>
+          {/* ── ENTRY ── */}
+          <TabsContent value="entry" className="space-y-3 mt-3">
             <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base font-heading">Body Part *</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <BodyDiagram value={body} onSelect={setBody} />
+              <CardHeader className="pb-2"><CardTitle className="text-base">Patient</CardTitle></CardHeader>
+              <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                  <Label>Mobile *</Label>
+                  <Input value={mobile} onChange={(e) => { setMobile(e.target.value.replace(/\D/g, "").slice(0, 10)); setSelPatient(null); }} placeholder="10-digit" />
+                </div>
+                <div>
+                  <Label>Name *</Label>
+                  <Input value={name} onChange={(e) => { setName(e.target.value); setSelPatient(null); }} />
+                </div>
+                <div>
+                  <Label>Age</Label>
+                  <Input type="number" value={age} onChange={(e) => setAge(e.target.value)} />
+                </div>
+                {!selPatient && !!hits?.length && (
+                  <div className="md:col-span-3 border rounded-md divide-y max-h-40 overflow-auto">
+                    {hits.slice(0, 5).map((p: any) => (
+                      <button key={p.id} type="button" onClick={() => pickPatient(p)}
+                        className="w-full text-left p-2 hover:bg-muted text-sm flex justify-between">
+                        <span>{p.name}</span>
+                        <span className="text-xs text-muted-foreground">{p.mobile}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {selPatient && <div className="md:col-span-3 text-xs text-success">✓ Existing patient</div>}
               </CardContent>
             </Card>
 
             <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base font-heading">Fracture Details</CardTitle>
-              </CardHeader>
-              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <CardHeader className="pb-2"><CardTitle className="text-base">Fracture Details</CardTitle></CardHeader>
+              <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                  <Label>Body Part *</Label>
+                  <Select value={bodyPart} onValueChange={setBodyPart}>
+                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectContent>{BODY_PARTS.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Side</Label>
+                  <Select value={side} onValueChange={setSide}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Right">Right</SelectItem>
+                      <SelectItem value="Left">Left</SelectItem>
+                      <SelectItem value="Both">Both</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div>
                   <Label>Fracture Type *</Label>
                   <Select value={fractureType} onValueChange={setFractureType}>
                     <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                    <SelectContent>
-                      {FRACTURE_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                    </SelectContent>
+                    <SelectContent>{FRACTURE_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
-                <div>
-                  <Label>Cause</Label>
-                  <Select value={cause} onValueChange={setCause}>
-                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                    <SelectContent>
-                      {CAUSES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base font-heading">Treatment</CardTitle>
-              </CardHeader>
-              <CardContent className="grid grid-cols-1 md:grid-cols-4 gap-3">
                 <div>
                   <Label>Plaster Type</Label>
                   <Select value={plasterType} onValueChange={setPlasterType}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {PLASTER_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                    </SelectContent>
+                    <SelectContent>{PLASTER_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
                 <div>
@@ -380,169 +278,172 @@ export default function Ortho() {
                 </div>
                 <div>
                   <Label>Follow-up Days</Label>
-                  <Input
-                    type="number"
-                    value={followupDays}
-                    onChange={(e) => setFollowupDays(e.target.value)}
-                  />
+                  <Input type="number" value={followupDays} onChange={(e) => setFollowupDays(e.target.value)} />
                 </div>
-                <div>
+                <div className="md:col-span-3">
                   <Label>Next Follow-up</Label>
-                  <Input value={nextFollowup} readOnly className="bg-muted" />
+                  <Input value={fmt(nextFollowup)} readOnly className="bg-muted" />
+                </div>
+                <div className="md:col-span-3">
+                  <Label>Doctor Notes</Label>
+                  <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
                 </div>
               </CardContent>
             </Card>
-          </>
-        )}
 
-        {/* Referred flow */}
-        {patientType === "referred" && (
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base font-heading">Referral</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
-                <Label>Hospital *</Label>
-                {!newHospital ? (
-                  <div className="flex gap-2">
-                    <Select value={hospitalName} onValueChange={setHospitalName}>
-                      <SelectTrigger><SelectValue placeholder="Select hospital" /></SelectTrigger>
-                      <SelectContent>
-                        {(hospitals || []).map((h: any) => (
-                          <SelectItem key={h.id} value={h.name}>{h.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button type="button" variant="outline" size="icon" onClick={() => { setNewHospital(true); setHospitalName(""); setHospitalDoctor(""); }}>
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="flex gap-2">
-                    <Input value={hospitalName} onChange={(e) => setHospitalName(e.target.value)} placeholder="New hospital name" />
-                    <Button type="button" variant="ghost" size="icon" onClick={() => setNewHospital(false)}>
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                )}
-              </div>
-              <div>
-                <Label>Doctor</Label>
-                <Input value={hospitalDoctor} onChange={(e) => setHospitalDoctor(e.target.value)} placeholder="Doctor name" />
-              </div>
-              <div className="md:col-span-2">
-                <Label>Reason</Label>
-                <Select value={referralReason} onValueChange={setReferralReason}>
-                  <SelectTrigger><SelectValue placeholder="Select reason" /></SelectTrigger>
-                  <SelectContent>
-                    {REFERRAL_REASONS.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Doctor notes (always) */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-heading">Doctor Notes (internal)</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Textarea value={doctorNotes} onChange={(e) => setDoctorNotes(e.target.value)} rows={2} />
-          </CardContent>
-        </Card>
-
-        <div className="flex gap-2">
-          <Button onClick={handleSave} disabled={addCase.isPending} className="gap-2">
-            <Save className="h-4 w-4" /> {savedCaseId ? "Update" : "Save Case"}
-          </Button>
-          <Button variant="outline" onClick={handleSendWhatsApp} className="gap-2" disabled={!savedCaseId}>
-            <MessageCircle className="h-4 w-4" /> Send WhatsApp (Hindi)
-          </Button>
-        </div>
-
-        {/* X-ray system - fracture only */}
-        {patientType === "fracture" && savedCaseId && (
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base font-heading">X-Ray Images</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <label className="flex items-center justify-center border-2 border-dashed rounded-md p-4 cursor-pointer hover:bg-muted">
-                <Upload className="h-4 w-4 mr-2" />
-                <span className="text-sm">Upload X-ray (multiple allowed)</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  className="hidden"
-                  onChange={(e) => handleXrayUpload(e.target.files)}
-                />
-              </label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {(xrays || []).map((x: any) => (
-                  <div key={x.id} className="relative border rounded-md overflow-hidden">
-                    <img src={x.file_url} alt="X-ray" className="w-full h-24 object-cover" />
-                    <Badge className="absolute bottom-1 left-1 text-[10px]">
-                      {new Date(x.image_date).toLocaleDateString()}
-                    </Badge>
-                  </div>
-                ))}
-                {!xrays?.length && (
-                  <p className="col-span-full text-xs text-muted-foreground text-center py-2">
-                    No X-rays yet
-                  </p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Plaster status */}
-        {patientType === "fracture" && savedCaseId && (
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base font-heading">Plaster Status</CardTitle>
-            </CardHeader>
-            <CardContent className="flex items-center gap-2">
-              <Badge variant="outline">Current: {savedCaseData?.plaster_status || "Active"}</Badge>
-              <Button size="sm" variant="outline" onClick={() => updatePlasterStatus("Active")}>Active</Button>
-              <Button size="sm" variant="outline" onClick={() => updatePlasterStatus("Removed")}>Removed</Button>
-              <Button size="sm" variant="outline" onClick={() => updatePlasterStatus("Missed")}>Missed</Button>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Recent cases */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-heading">Recent Fracture Cases</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2 max-h-72 overflow-auto">
-              {!recentCases?.length && (
-                <p className="text-sm text-muted-foreground text-center py-3">No cases yet</p>
-              )}
-              {(recentCases || []).slice(0, 10).map((c: any) => (
-                <div key={c.id} className="flex items-center justify-between border rounded-md p-2 text-sm">
-                  <div>
-                    <p className="font-medium">{c.patients?.name} <span className="text-xs text-muted-foreground">· {c.patients?.mobile}</span></p>
-                    <p className="text-xs text-muted-foreground">
-                      {c.patient_type === "fracture"
-                        ? `${c.side || ""} ${c.body_part || ""} · ${c.fracture_type || "-"} · Next: ${c.next_followup_date || "-"}`
-                        : c.patient_type === "referred"
-                        ? `Referred → ${c.hospital_name}`
-                        : "Normal"}
-                    </p>
-                  </div>
-                  <Badge variant="outline">{c.plaster_status}</Badge>
-                </div>
-              ))}
+            <div className="flex gap-2">
+              <Button onClick={handleSave} disabled={addCase.isPending} className="gap-2">
+                <Save className="h-4 w-4" /> Save & Send SMS
+              </Button>
+              <Button variant="outline" onClick={resetForm}>Reset</Button>
             </div>
-          </CardContent>
-        </Card>
+          </TabsContent>
+
+          {/* ── CALENDAR ── */}
+          <TabsContent value="calendar" className="mt-3">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <CalendarDays className="h-4 w-4" /> Next 7 Days Follow-ups
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-2">
+                {next7.map((d) => {
+                  const list = followupsByDate[d] || [];
+                  const isLeave = leaves.includes(d);
+                  return (
+                    <div key={d} className={`border rounded-md p-2 min-h-[120px] ${isLeave ? "bg-destructive/10 border-destructive/30" : ""}`}>
+                      <div className="text-xs font-medium mb-2 flex items-center justify-between">
+                        <span>{fmt(d)}</span>
+                        {isLeave && <Badge variant="destructive" className="text-[10px]">Leave</Badge>}
+                      </div>
+                      {list.length === 0 ? (
+                        <div className="text-xs text-muted-foreground">—</div>
+                      ) : list.map((f: any) => (
+                        <div key={f.id} className="text-xs p-1 mb-1 bg-muted rounded">
+                          <div className="font-medium truncate">{f.patients?.name}</div>
+                          <div className="text-muted-foreground truncate">{f.body_part} · {f.patients?.mobile}</div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* ── LEAVE ── */}
+          <TabsContent value="leave" className="mt-3 space-y-3">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2"><Plane className="h-4 w-4" /> Single Day Leave</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex flex-col sm:flex-row gap-2 sm:items-end">
+                  <div className="flex-1">
+                    <Label>Leave Date</Label>
+                    <Input type="date" value={leaveDate} onChange={(e) => setLeaveDate(e.target.value)} />
+                  </div>
+                  <Button onClick={addSingleLeave} disabled={leaveBusy} className="gap-2">
+                    <Send className="h-4 w-4" /> Mark Leave & Notify
+                  </Button>
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Affected follow-ups: {(followups || []).filter((f: any) => f.next_followup_date === leaveDate).length}
+                </div>
+                {!!leaves.length && (
+                  <div>
+                    <Label>Marked Leaves</Label>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {leaves.sort().map((d) => (
+                        <Badge key={d} variant="secondary" className="gap-1">
+                          {fmt(d)}
+                          <button onClick={() => removeLeave(d)} className="ml-1 hover:text-destructive"><Trash2 className="h-3 w-3" /></button>
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* ── BULK SMS ── */}
+          <TabsContent value="bulk" className="mt-3">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2"><Send className="h-4 w-4" /> Long Leave / Bulk SMS</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <Label>From</Label>
+                    <Input type="date" value={longFrom} onChange={(e) => setLongFrom(e.target.value)} />
+                  </div>
+                  <div>
+                    <Label>To</Label>
+                    <Input type="date" value={longTo} onChange={(e) => setLongTo(e.target.value)} />
+                  </div>
+                </div>
+                <div>
+                  <Label>Message (optional, use {"{name}"} for patient name)</Label>
+                  <Textarea rows={3} value={longMsg} onChange={(e) => setLongMsg(e.target.value)}
+                    placeholder={`Namaste {name}, Balaji Ortho Care Center ${fmt(longFrom)} se ${fmt(longTo)} tak band rahega...`} />
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  Patients in range: <strong>{longAffected.length}</strong>
+                </div>
+                <Button onClick={sendLongLeave} disabled={longBusy || !longAffected.length} className="gap-2">
+                  <Send className="h-4 w-4" /> Send Bulk SMS
+                </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* ── ALL ── */}
+          <TabsContent value="all" className="mt-3">
+            <Card>
+              <CardHeader className="pb-2"><CardTitle className="text-base">All Fracture Patients</CardTitle></CardHeader>
+              <CardContent className="space-y-3">
+                <Input placeholder="Search by name, mobile, body part..." value={search} onChange={(e) => setSearch(e.target.value)} />
+                <div className="overflow-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Mobile</TableHead>
+                        <TableHead>Body Part</TableHead>
+                        <TableHead>Plaster</TableHead>
+                        <TableHead>Next FU</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredCases.length === 0 ? (
+                        <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">No records</TableCell></TableRow>
+                      ) : filteredCases.map((c: any) => (
+                        <TableRow key={c.id}>
+                          <TableCell className="font-medium">{c.patients?.name}</TableCell>
+                          <TableCell>{c.patients?.mobile}</TableCell>
+                          <TableCell>{c.body_part} {c.side ? `(${c.side})` : ""}</TableCell>
+                          <TableCell>{c.plaster_type} · {c.plaster_date ? fmt(c.plaster_date) : ""}</TableCell>
+                          <TableCell>{c.next_followup_date ? fmt(c.next_followup_date) : "—"}</TableCell>
+                          <TableCell><Badge variant={c.plaster_status === "Active" ? "default" : "secondary"}>{c.plaster_status}</Badge></TableCell>
+                          <TableCell>
+                            <Button size="sm" variant="outline" className="gap-1" onClick={() => resendSMS(c)}>
+                              <MessageCircle className="h-3 w-3" /> SMS
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </DashboardLayout>
   );
