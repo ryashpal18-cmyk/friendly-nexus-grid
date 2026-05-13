@@ -10,6 +10,7 @@ import {
   Stethoscope,
   LogOut,
   MessageCircle,
+  MessageSquare,
   Pill,
   Bone,
   ClipboardList,
