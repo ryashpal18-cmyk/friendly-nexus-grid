@@ -165,11 +165,7 @@ export function useFractureXrays(caseId?: string) {
   });
 }
 
-export async function uploadFractureXray(
-  caseId: string,
-  patientId: string,
-  file: File,
-) {
+export async function uploadFractureXray(caseId: string, patientId: string, file: File) {
   const ext = file.name.split(".").pop() || "jpg";
   const path = `${patientId}/${caseId}/${Date.now()}.${ext}`;
   const { error: upErr } = await supabase.storage
