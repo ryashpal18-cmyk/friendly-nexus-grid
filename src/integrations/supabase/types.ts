@@ -603,6 +603,36 @@ export type Database = {
         }
         Relationships: []
       }
+      sms_logs: {
+        Row: {
+          id: string
+          message: string | null
+          mobile: string | null
+          patient_name: string | null
+          sent_at: string | null
+          sms_type: string | null
+          status: string | null
+        }
+        Insert: {
+          id?: string
+          message?: string | null
+          mobile?: string | null
+          patient_name?: string | null
+          sent_at?: string | null
+          sms_type?: string | null
+          status?: string | null
+        }
+        Update: {
+          id?: string
+          message?: string | null
+          mobile?: string | null
+          patient_name?: string | null
+          sent_at?: string | null
+          sms_type?: string | null
+          status?: string | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string

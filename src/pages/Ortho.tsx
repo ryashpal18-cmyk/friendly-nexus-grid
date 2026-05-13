@@ -9,7 +9,12 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Save, MessageCircle, CalendarDays, Plane, Send, Bone, Trash2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Save, MessageCircle, CalendarDays, Plane, Send, Bone, Trash2, BellRing, Shield } from "lucide-react";
 import { toast } from "sonner";
 import { useAddFractureCase, useFractureCases, useFollowupsAround } from "@/hooks/useOrtho";
 import { useAddPatient, useSearchPatients } from "@/hooks/useDatabase";
@@ -31,11 +36,23 @@ const addDaysISO = (base: string, days: number) => {
   return d.toISOString().slice(0, 10);
 };
 const fmt = (iso: string) => new Date(iso).toLocaleDateString("en-IN", { day: "2-digit", month: "short", weekday: "short" });
+const fmtShort = (iso: string) => new Date(iso).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 
-const followupSMS = (name: string, date: string) =>
-  `Namaste ${name}, aapka follow-up Balaji Ortho Care Center me ${fmt(date)} ko hai. Dr. S. S. Rathore. Samay par aaye. Dhanyawad.`;
-const leaveSMS = (name: string, oldDate: string, newDate: string) =>
-  `Namaste ${name}, ${fmt(oldDate)} ko clinic band rahega. Aapka follow-up ${fmt(newDate)} ko shift kar diya gaya hai. Balaji Ortho Care Center.`;
+// ── SMS Templates (Hindi) ──
+const tplLeave = (name: string, date: string) =>
+  `नमस्ते ${name} जी 🙏\n\nDr. Rathore आज ${fmtShort(date)} को\nउपलब्ध नहीं हैं।\nनई Appointment के लिए संपर्क करें।\n\nअसुविधा के लिए खेद है 🙏\nBalaji Ortho Care Center 🏥`;
+
+const tplLongLeave = (name: string, from: string, to: string) =>
+  `नमस्ते ${name} जी 🙏\n\nDr. Rathore ${fmtShort(from)} से ${fmtShort(to)} तक\nउपलब्ध नहीं रहेंगे।\n\nआपकी सेवा में सदैव तत्पर हैं 🙏\nBalaji Ortho Care Center 🏥`;
+
+const tplFollowupToday = (name: string) =>
+  `नमस्ते ${name} जी 🙏\n\nआज आपका Follow-up है।\nकृपया सुबह 11:30 बजे तक पहुँचें।\n\nBalaji Ortho Care Center 🏥`;
+
+const tplFollowupReminder = (name: string, date: string) =>
+  `नमस्ते ${name} जी 🙏\n\nआपका Follow-up ${fmtShort(date)} को है।\nकृपया समय पर पहुँचें।\n\nBalaji Ortho Care Center 🏥`;
+
+const tplPrecaution = (name: string, bodyPart: string, nextDate: string) =>
+  `नमस्ते ${name} जी 🙏\n\nआपके प्लास्टर की जानकारी:\nशरीर का हिस्सा: ${bodyPart || "—"}\nअगली विजिट: ${nextDate ? fmtShort(nextDate) : "—"}\n\nसावधानियां:\n✅ प्लास्टर गीला न होने दें\n✅ भारी वजन न उठाएं\n✅ सूजन पर तुरंत आएं\n✅ Follow-up जरूर करवाएं\n\nDr. Rathore\nBalaji Ortho Care Center 🏥`;
 
 export default function Ortho() {
   const todayIso = new Date().toISOString().slice(0, 10);
@@ -87,8 +104,7 @@ export default function Ortho() {
         doctor_notes: notes || null,
       } as any);
       toast.success("Case saved");
-      // Auto SMS
-      const ok = await sendSMS(mobile, followupSMS(name, nextFollowup));
+      const ok = await sendSMS(mobile, tplFollowupReminder(name, nextFollowup), name, "followup_reminder");
       toast[ok ? "success" : "error"](ok ? "SMS sent" : "SMS failed");
       resetForm();
       refetchCases(); refetchFollowups();
@@ -108,30 +124,56 @@ export default function Ortho() {
     return m;
   }, [followups]);
 
+  const todaysFollowups = followupsByDate[todayIso] || [];
+  const [todayBusy, setTodayBusy] = useState(false);
+  const sendTodayReminders = async () => {
+    if (!todaysFollowups.length) return toast.error("Aaj koi follow-up nahi");
+    setTodayBusy(true);
+    let sent = 0;
+    for (const f of todaysFollowups) {
+      const n = f.patients?.name || "Patient";
+      const ok = await sendSMS(f.patients?.mobile || "", tplFollowupToday(n), n, "followup_today");
+      if (ok) sent++;
+    }
+    setTodayBusy(false);
+    toast.success(`✅ ${sent}/${todaysFollowups.length} SMS भेजे गए`);
+  };
+
   // ─── Leave manager ───
   const [leaves, setLeavesState] = useState<string[]>(getLeaves());
   const [leaveDate, setLeaveDate] = useState(todayIso);
   const [leaveBusy, setLeaveBusy] = useState(false);
 
-  const addSingleLeave = async () => {
-    if (!leaveDate) return;
-    const affected = (followups || []).filter((f: any) => f.next_followup_date === leaveDate);
-    if (!affected.length) {
-      const updated = [...new Set([...leaves, leaveDate])];
-      setLeaves(updated); setLeavesState(updated);
-      return toast.success("Leave saved (no patients on this date)");
-    }
+  const leaveAffected = useMemo(
+    () => (followups || []).filter((f: any) => f.next_followup_date === leaveDate),
+    [followups, leaveDate]
+  );
+
+  const sendLeaveSMSOne = async (f: any) => {
+    const n = f.patients?.name || "Patient";
+    const ok = await sendSMS(f.patients?.mobile || "", tplLeave(n, leaveDate), n, "leave");
+    toast[ok ? "success" : "error"](ok ? `✅ SMS भेजा गया - ${n}` : `❌ SMS failed - ${n}`);
+  };
+
+  const sendLeaveSMSAll = async () => {
+    if (!leaveAffected.length) return toast.error("Is din koi follow-up nahi");
     setLeaveBusy(true);
     let sent = 0;
-    for (const f of affected) {
-      const newDate = addDaysISO(leaveDate, 1);
-      const ok = await sendSMS(f.patients?.mobile || "", leaveSMS(f.patients?.name || "Patient", leaveDate, newDate));
+    for (const f of leaveAffected) {
+      const n = f.patients?.name || "Patient";
+      const ok = await sendSMS(f.patients?.mobile || "", tplLeave(n, leaveDate), n, "leave");
       if (ok) sent++;
     }
     const updated = [...new Set([...leaves, leaveDate])];
     setLeaves(updated); setLeavesState(updated);
     setLeaveBusy(false);
-    toast.success(`Leave set, ${sent}/${affected.length} SMS sent`);
+    toast.success(`✅ ${sent}/${leaveAffected.length} SMS भेजे गए`);
+  };
+
+  const markLeaveOnly = () => {
+    const updated = [...new Set([...leaves, leaveDate])];
+    setLeaves(updated); setLeavesState(updated);
+    toast.success("Leave marked");
   };
 
   const removeLeave = (d: string) => {
@@ -142,32 +184,30 @@ export default function Ortho() {
   // ─── Long leave bulk SMS ───
   const [longFrom, setLongFrom] = useState(todayIso);
   const [longTo, setLongTo] = useState(addDaysISO(todayIso, 3));
-  const [longMsg, setLongMsg] = useState("");
   const [longBusy, setLongBusy] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
-  const longAffected = useMemo(() => {
-    return (followups || []).filter(
-      (f: any) => f.next_followup_date && f.next_followup_date >= longFrom && f.next_followup_date <= longTo
-    );
-  }, [followups, longFrom, longTo]);
+  const activePlasterCases = useMemo(
+    () => (cases || []).filter((c: any) => c.plaster_status === "Active"),
+    [cases]
+  );
 
   const sendLongLeave = async () => {
-    if (!longAffected.length) return toast.error("Is range me koi follow-up nahi");
-    const msg = longMsg || `Namaste, Balaji Ortho Care Center ${fmt(longFrom)} se ${fmt(longTo)} tak band rahega. Kripya baad me visit kare. Dr. S. S. Rathore.`;
+    setConfirmOpen(false);
+    if (!activePlasterCases.length) return toast.error("Koi active plaster patient nahi");
     setLongBusy(true);
     let sent = 0;
-    for (const f of longAffected) {
-      const personal = msg.replace("{name}", f.patients?.name || "Patient");
-      const ok = await sendSMS(f.patients?.mobile || "", personal);
+    for (const c of activePlasterCases) {
+      const n = c.patients?.name || "Patient";
+      const ok = await sendSMS(c.patients?.mobile || "", tplLongLeave(n, longFrom, longTo), n, "long_leave");
       if (ok) sent++;
     }
-    // mark all dates as leave
     const dates = new Set(leaves);
     for (let d = longFrom; d <= longTo; d = addDaysISO(d, 1)) dates.add(d);
     const updated = [...dates];
     setLeaves(updated); setLeavesState(updated);
     setLongBusy(false);
-    toast.success(`${sent}/${longAffected.length} SMS sent`);
+    toast.success(`✅ ${sent} SMS भेजे गए!`);
   };
 
   // ─── All patients ───
@@ -182,10 +222,38 @@ export default function Ortho() {
     );
   }, [cases, search]);
 
-  const resendSMS = async (c: any) => {
-    if (!c.patients?.mobile || !c.next_followup_date) return toast.error("Mobile/date missing");
-    const ok = await sendSMS(c.patients.mobile, followupSMS(c.patients.name, c.next_followup_date));
-    toast[ok ? "success" : "error"](ok ? "SMS sent" : "SMS failed");
+  // ─── Patient detail modal ───
+  const [detailCase, setDetailCase] = useState<any>(null);
+  const [customMsg, setCustomMsg] = useState("");
+  const [detailBusy, setDetailBusy] = useState(false);
+
+  const openDetail = (c: any) => { setDetailCase(c); setCustomMsg(""); };
+  const closeDetail = () => { setDetailCase(null); setCustomMsg(""); };
+
+  const sendDetailSMS = async (kind: "precaution" | "followup" | "custom") => {
+    if (!detailCase) return;
+    const n = detailCase.patients?.name || "Patient";
+    const mob = detailCase.patients?.mobile || "";
+    if (!mob) return toast.error("Mobile missing");
+    let msg = "";
+    let smsType = "";
+    if (kind === "precaution") {
+      msg = tplPrecaution(n, detailCase.body_part || "", detailCase.next_followup_date || "");
+      smsType = "precaution";
+    } else if (kind === "followup") {
+      if (!detailCase.next_followup_date) return toast.error("Follow-up date missing");
+      msg = tplFollowupReminder(n, detailCase.next_followup_date);
+      smsType = "followup_reminder";
+    } else {
+      if (!customMsg.trim()) return toast.error("Message likho");
+      msg = customMsg.trim();
+      smsType = "custom";
+    }
+    setDetailBusy(true);
+    const ok = await sendSMS(mob, msg, n, smsType);
+    setDetailBusy(false);
+    toast[ok ? "success" : "error"](ok ? `✅ SMS भेजा गया - ${n}` : "❌ SMS failed");
+    if (ok && kind === "custom") setCustomMsg("");
   };
 
   return (
@@ -300,7 +368,18 @@ export default function Ortho() {
           </TabsContent>
 
           {/* ── CALENDAR ── */}
-          <TabsContent value="calendar" className="mt-3">
+          <TabsContent value="calendar" className="mt-3 space-y-3">
+            <Card>
+              <CardHeader className="pb-2 flex flex-row items-center justify-between gap-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <BellRing className="h-4 w-4" /> आज के Follow-up Reminders
+                </CardTitle>
+                <Button size="sm" onClick={sendTodayReminders} disabled={todayBusy || !todaysFollowups.length} className="gap-2">
+                  <Send className="h-4 w-4" /> आज Reminders भेजें ({todaysFollowups.length})
+                </Button>
+              </CardHeader>
+            </Card>
+
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
@@ -344,13 +423,31 @@ export default function Ortho() {
                     <Label>Leave Date</Label>
                     <Input type="date" value={leaveDate} onChange={(e) => setLeaveDate(e.target.value)} />
                   </div>
-                  <Button onClick={addSingleLeave} disabled={leaveBusy} className="gap-2">
-                    <Send className="h-4 w-4" /> Mark Leave & Notify
+                  <Button variant="outline" onClick={markLeaveOnly}>Mark Leave</Button>
+                  <Button onClick={sendLeaveSMSAll} disabled={leaveBusy || !leaveAffected.length} className="gap-2">
+                    <Send className="h-4 w-4" /> सभी को SMS भेजें ({leaveAffected.length})
                   </Button>
                 </div>
-                <div className="text-xs text-muted-foreground">
-                  Affected follow-ups: {(followups || []).filter((f: any) => f.next_followup_date === leaveDate).length}
-                </div>
+
+                {leaveAffected.length > 0 && (
+                  <div className="border rounded-md divide-y">
+                    {leaveAffected.map((f: any) => (
+                      <div key={f.id} className="p-2 flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="font-medium text-sm truncate">{f.patients?.name}</div>
+                          <div className="text-xs text-muted-foreground truncate">{f.patients?.mobile} · {f.body_part}</div>
+                        </div>
+                        <Button size="sm" variant="outline" className="gap-1" onClick={() => sendLeaveSMSOne(f)}>
+                          <MessageCircle className="h-3 w-3" /> SMS भेजें
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {leaveAffected.length === 0 && (
+                  <div className="text-xs text-muted-foreground">Is date pe koi follow-up nahi.</div>
+                )}
+
                 {!!leaves.length && (
                   <div>
                     <Label>Marked Leaves</Label>
@@ -385,19 +482,33 @@ export default function Ortho() {
                     <Input type="date" value={longTo} onChange={(e) => setLongTo(e.target.value)} />
                   </div>
                 </div>
-                <div>
-                  <Label>Message (optional, use {"{name}"} for patient name)</Label>
-                  <Textarea rows={3} value={longMsg} onChange={(e) => setLongMsg(e.target.value)}
-                    placeholder={`Namaste {name}, Balaji Ortho Care Center ${fmt(longFrom)} se ${fmt(longTo)} tak band rahega...`} />
+                <div className="text-sm">
+                  Active Plaster Patients: <strong>{activePlasterCases.length}</strong>
                 </div>
-                <div className="text-sm text-muted-foreground">
-                  Patients in range: <strong>{longAffected.length}</strong>
-                </div>
-                <Button onClick={sendLongLeave} disabled={longBusy || !longAffected.length} className="gap-2">
-                  <Send className="h-4 w-4" /> Send Bulk SMS
+                <Button
+                  onClick={() => setConfirmOpen(true)}
+                  disabled={longBusy || !activePlasterCases.length}
+                  className="gap-2"
+                >
+                  <Send className="h-4 w-4" /> सभी Active Plaster को SMS भेजें
                 </Button>
               </CardContent>
             </Card>
+
+            <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Confirm Bulk SMS</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {activePlasterCases.length} active plaster patients ko SMS bheja jayega ki Dr. Rathore {fmtShort(longFrom)} se {fmtShort(longTo)} tak unavailable rahenge. Continue?
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={sendLongLeave}>Send</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </TabsContent>
 
           {/* ── ALL ── */}
@@ -423,15 +534,15 @@ export default function Ortho() {
                       {filteredCases.length === 0 ? (
                         <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">No records</TableCell></TableRow>
                       ) : filteredCases.map((c: any) => (
-                        <TableRow key={c.id}>
+                        <TableRow key={c.id} className="cursor-pointer" onClick={() => openDetail(c)}>
                           <TableCell className="font-medium">{c.patients?.name}</TableCell>
                           <TableCell>{c.patients?.mobile}</TableCell>
                           <TableCell>{c.body_part} {c.side ? `(${c.side})` : ""}</TableCell>
                           <TableCell>{c.plaster_type} · {c.plaster_date ? fmt(c.plaster_date) : ""}</TableCell>
                           <TableCell>{c.next_followup_date ? fmt(c.next_followup_date) : "—"}</TableCell>
                           <TableCell><Badge variant={c.plaster_status === "Active" ? "default" : "secondary"}>{c.plaster_status}</Badge></TableCell>
-                          <TableCell>
-                            <Button size="sm" variant="outline" className="gap-1" onClick={() => resendSMS(c)}>
+                          <TableCell onClick={(e) => e.stopPropagation()}>
+                            <Button size="sm" variant="outline" className="gap-1" onClick={() => openDetail(c)}>
                               <MessageCircle className="h-3 w-3" /> SMS
                             </Button>
                           </TableCell>
@@ -444,6 +555,45 @@ export default function Ortho() {
             </Card>
           </TabsContent>
         </Tabs>
+
+        {/* ── Patient Detail Modal ── */}
+        <Dialog open={!!detailCase} onOpenChange={(o) => !o && closeDetail()}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>{detailCase?.patients?.name || "Patient"}</DialogTitle>
+            </DialogHeader>
+            {detailCase && (
+              <div className="space-y-3">
+                <div className="text-sm text-muted-foreground space-y-0.5">
+                  <div><strong>Mobile:</strong> {detailCase.patients?.mobile}</div>
+                  <div><strong>Body Part:</strong> {detailCase.body_part} {detailCase.side ? `(${detailCase.side})` : ""}</div>
+                  <div><strong>Plaster:</strong> {detailCase.plaster_type} · {detailCase.plaster_date ? fmt(detailCase.plaster_date) : ""}</div>
+                  <div><strong>Next Follow-up:</strong> {detailCase.next_followup_date ? fmt(detailCase.next_followup_date) : "—"}</div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <Button variant="outline" className="gap-2" disabled={detailBusy} onClick={() => sendDetailSMS("precaution")}>
+                    <Shield className="h-4 w-4" /> Precaution SMS
+                  </Button>
+                  <Button variant="outline" className="gap-2" disabled={detailBusy} onClick={() => sendDetailSMS("followup")}>
+                    <BellRing className="h-4 w-4" /> Followup Reminder SMS
+                  </Button>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Custom SMS</Label>
+                  <Textarea rows={4} value={customMsg} onChange={(e) => setCustomMsg(e.target.value)} placeholder="अपना message likhe..." />
+                  <Button className="gap-2 w-full sm:w-auto" disabled={detailBusy || !customMsg.trim()} onClick={() => sendDetailSMS("custom")}>
+                    <Send className="h-4 w-4" /> Send Custom SMS
+                  </Button>
+                </div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button variant="ghost" onClick={closeDetail}>Close</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );
