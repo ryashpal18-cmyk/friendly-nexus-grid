@@ -30,7 +30,7 @@ async function attachPatientsToCases(cases: any[]) {
     .from("patients")
     .select("id, name, mobile")
     .in("id", patientIds);
-  if (error) throw error;
+  if (error) return cases;
 
   const patientMap = new Map((patients || []).map((p: any) => [p.id, p]));
   return cases.map((c) => ({ ...c, patients: patientMap.get(c.patient_id) || null }));
