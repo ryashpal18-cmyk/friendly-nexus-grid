@@ -22,6 +22,20 @@ export type FractureCase = {
   updated_at: string;
 };
 
+async function attachPatientsToCases(cases: any[]) {
+  const patientIds = [...new Set(cases.map((c) => c.patient_id).filter(Boolean))];
+  if (!patientIds.length) return cases;
+
+  const { data: patients, error } = await supabase
+    .from("patients")
+    .select("id, name, mobile")
+    .in("id", patientIds);
+  if (error) throw error;
+
+  const patientMap = new Map((patients || []).map((p: any) => [p.id, p]));
+  return cases.map((c) => ({ ...c, patients: patientMap.get(c.patient_id) || null }));
+}
+
 export function useFractureCases() {
   return useQuery({
     queryKey: ["fracture_cases"],
@@ -30,10 +44,10 @@ export function useFractureCases() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("fracture_cases" as any)
-        .select("*, patients(name, mobile)")
+        .select("*")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return (data || []) as any[];
+      return attachPatientsToCases((data || []) as any[]);
     },
   });
 }
@@ -90,12 +104,12 @@ export function useFollowupsAround() {
       end.setDate(end.getDate() + 30);
       const { data, error } = await supabase
         .from("fracture_cases" as any)
-        .select("*, patients(name, mobile)")
+        .select("*")
         .gte("next_followup_date", start.toISOString().slice(0, 10))
         .lte("next_followup_date", end.toISOString().slice(0, 10))
         .order("next_followup_date", { ascending: true });
       if (error) throw error;
-      return (data || []) as any[];
+      return attachPatientsToCases((data || []) as any[]);
     },
   });
 }
