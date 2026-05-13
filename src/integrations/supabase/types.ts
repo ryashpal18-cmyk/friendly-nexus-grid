@@ -228,7 +228,15 @@ export type Database = {
           side?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fracture_cases_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       fracture_xrays: {
         Row: {
@@ -255,7 +263,22 @@ export type Database = {
           image_date?: string
           patient_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fracture_xrays_case_id_fkey"
+            columns: ["fracture_case_id"]
+            isOneToOne: false
+            referencedRelation: "fracture_cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fracture_xrays_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       hospitals: {
         Row: {
