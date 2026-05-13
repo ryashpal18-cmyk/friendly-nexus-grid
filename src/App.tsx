@@ -20,6 +20,7 @@ import MedicineMaster from "./pages/MedicineMaster";
 import PatientMedicine from "./pages/PatientMedicine";
 import PatientProfile from "./pages/PatientProfile";
 import Ortho from "./pages/Ortho";
+import SmsLogs from "./pages/SmsLogs";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 
