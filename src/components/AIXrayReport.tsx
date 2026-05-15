@@ -78,7 +78,12 @@ export default function AIXrayReport() {
 
     setReport(null);
 
-    const GEMINI_KEY = "AIzaSyB8RN6JqPw_O_IqxEoNNFQ2_KRIRJLFhiks8_FymUWUbe50QjQ";
+    const GEMINI_KEY = import.meta.env.VITE_GEMINI_API_KEY as string | undefined;
+    if (!GEMINI_KEY) {
+      setError("Gemini API key configured nahi hai. VITE_GEMINI_API_KEY env variable set karein.");
+      setLoading(false);
+      return;
+    }
 
     const prompt = `You are a senior expert radiologist at Balaji Ortho Care Center. Analyze this X-ray image carefully.
 
